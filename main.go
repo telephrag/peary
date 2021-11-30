@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"kubinka/commands"
 	"kubinka/config"
 	"kubinka/handlers"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -15,19 +16,31 @@ func main() {
 
 	discord, err := discordgo.New("Bot " + config.Token)
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("Could not create session.")
 		return
 	}
 	discord.SyncEvents = true
 
-	discord.AddHandler(handlers.Message)
+	discord.AddHandler(handlers.Select)
 
 	err = discord.Open()
 	if err != nil {
-		fmt.Println(err)
+		log.Fatal("Could not open connection.")
 	}
 
-	discord.ChannelMessageSend(config.ChanID, "Privet, mudila.")
+	for _, cmd := range commands.Commands {
+		_, err := discord.ApplicationCommandCreate(
+			config.AppID,
+			config.GuildID,
+			&cmd,
+		)
+		if err != nil {
+			log.Panic(err, " while creating command: ", cmd.Name)
+		}
+
+	}
+
+	defer discord.Close()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)

@@ -1,8 +1,10 @@
 package commands
 
-import "discordgo"
+import (
+	"discordgo"
+)
 
-var commands = []discordgo.ApplicationCommand{
+var Commands = []discordgo.ApplicationCommand{
 	{
 		Name:        "deploy",
 		Description: "Выдаёт на время специальную роль по которой вас смогут пинговать в #поиск-игроков.",
@@ -16,7 +18,7 @@ var commands = []discordgo.ApplicationCommand{
 
 			{
 				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "hours",
+				Name:        "minutes",
 				Description: "Время в минутах, 0..59",
 				Required:    false,
 			},
