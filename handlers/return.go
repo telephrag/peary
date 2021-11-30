@@ -3,21 +3,18 @@ package handlers
 import (
 	"discordgo"
 	"kubinka/config"
+	"log"
 )
 
 func Return(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
-	if i.ApplicationCommandData().Name != "return" {
-		return
-	}
-
 	err := s.GuildMemberRoleRemove(
 		config.GuildID,
-		config.Skif,
+		i.Member.User.ID,
 		config.RoleID,
 	)
 	if err != nil {
-		// handle
+		log.Println(err, " ", i.ApplicationCommandData())
 		return
 	}
 

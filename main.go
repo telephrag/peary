@@ -14,9 +14,18 @@ import (
 
 func main() {
 
+	f, err := os.OpenFile("log.txt", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+	if err != nil {
+		log.Fatalln("Failed to open file for logging.")
+	}
+	log.SetOutput(f)
+	log.Println("\n<<<<< SESSION STARTUP >>>>>")
+	defer log.Println("<<<<< SESSION SHUTDOWN >>>>>")
+	defer f.Close()
+
 	discord, err := discordgo.New("Bot " + config.Token)
 	if err != nil {
-		log.Fatal("Could not create session.")
+		log.Fatalln("Could not create session.")
 		return
 	}
 	discord.SyncEvents = true
@@ -25,8 +34,9 @@ func main() {
 
 	err = discord.Open()
 	if err != nil {
-		log.Fatal("Could not open connection.")
+		log.Fatalln("Could not open connection.")
 	}
+	defer discord.Close()
 
 	for _, cmd := range commands.Commands {
 		_, err := discord.ApplicationCommandCreate(
@@ -35,14 +45,12 @@ func main() {
 			&cmd,
 		)
 		if err != nil {
-			log.Panic(err, " while creating command: ", cmd.Name)
+			log.Panicln(err, " while creating command: ", cmd.Name)
 		}
-
 	}
-
-	defer discord.Close()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
 	<-interrupt
+
 }
