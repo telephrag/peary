@@ -25,4 +25,10 @@ func Deploy(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Content: "You have been deployed. No timeframe yet :(",
 		},
 	})
+
+	log.Println(
+		i.ApplicationCommandData().Name,
+		i.Member.User.ID,
+		i.Member.User.Username,
+	)
 }

@@ -12,4 +12,10 @@ func Select(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 	h(s, i)
+
+	log.Println(
+		i.ApplicationCommandData().Name,
+		i.Member.User.ID,
+		i.Member.User.Username,
+	)
 }

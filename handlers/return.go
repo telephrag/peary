@@ -24,4 +24,10 @@ func Return(s *discordgo.Session, i *discordgo.InteractionCreate) {
 			Content: "You have returned from deployment :)",
 		},
 	})
+
+	log.Println(
+		i.ApplicationCommandData().Name,
+		i.Member.User.ID,
+		i.Member.User.Username,
+	)
 }

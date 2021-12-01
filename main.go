@@ -18,10 +18,10 @@ func main() {
 	if err != nil {
 		log.Fatalln("Failed to open file for logging.")
 	}
-	log.SetOutput(f)
-	log.Println("\n<<<<< SESSION STARTUP >>>>>")
-	defer log.Println("<<<<< SESSION SHUTDOWN >>>>>")
 	defer f.Close()
+
+	log.SetOutput(f)
+	log.Println("<<<<< SESSION STARTUP >>>>>")
 
 	discord, err := discordgo.New("Bot " + config.Token)
 	if err != nil {
@@ -29,7 +29,6 @@ func main() {
 		return
 	}
 	discord.SyncEvents = true
-
 	discord.AddHandler(handlers.Select)
 
 	err = discord.Open()
@@ -53,4 +52,5 @@ func main() {
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
 	<-interrupt
 
+	log.Print("<<<<< SESSION SHUTDOWN >>>>>\n\n\n")
 }
