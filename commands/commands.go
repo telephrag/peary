@@ -4,7 +4,7 @@ import (
 	"discordgo"
 )
 
-var Commands = []discordgo.ApplicationCommand{
+var Commands = []*discordgo.ApplicationCommand{
 	{
 		Name:        "deploy",
 		Description: "Выдаёт на время специальную роль по которой вас смогут пинговать в #поиск-игроков.",
