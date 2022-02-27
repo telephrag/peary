@@ -3,6 +3,7 @@ package handlers
 import (
 	"discordgo"
 	"kubinka/config"
+	"kubinka/db"
 	"log"
 )
 
@@ -13,21 +14,19 @@ func Return(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		i.Member.User.ID,
 		config.RoleID,
 	)
+	defer logCommand(i, err)
 	if err != nil {
 		log.Println(err, " ", i.ApplicationCommandData())
 		return
 	}
 
+	db.Instance.DeletePlayer(i.Member.User)
+
 	s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: "You have returned from deployment :)",
+			Content: "You have returned from deployment.",
 		},
 	})
 
-	log.Println(
-		i.ApplicationCommandData().Name,
-		i.Member.User.ID,
-		i.Member.User.Username,
-	)
 }

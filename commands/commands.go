@@ -2,24 +2,26 @@ package commands
 
 import (
 	"discordgo"
+	"kubinka/config"
 )
 
 var Commands = []*discordgo.ApplicationCommand{
 	{
 		Name:        "deploy",
-		Description: "Выдаёт на время специальную роль по которой вас смогут пинговать в #поиск-игроков.",
+		Description: "Выдаёт на время специальную роль по которой вас смогут пинговать в #" + config.ChanName + ".",
 		Options: []*discordgo.ApplicationCommandOption{
+
 			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "hours",
-				Description: "Время в часах, 0..12",
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "minutes",
+				Description: "Время в минутах, автоматически конвертируется в часы",
 				Required:    true,
 			},
 
 			{
-				Type:        discordgo.ApplicationCommandOptionString,
-				Name:        "minutes",
-				Description: "Время в минутах, 0..59",
+				Type:        discordgo.ApplicationCommandOptionInteger,
+				Name:        "hours",
+				Description: "Время в часах, 0..12",
 				Required:    false,
 			},
 		},
@@ -27,6 +29,6 @@ var Commands = []*discordgo.ApplicationCommand{
 
 	{
 		Name:        "return",
-		Description: "Забирает у вас роль, данную командой /deploy.",
+		Description: "Забирает роль, данную командой /deploy.",
 	},
 }

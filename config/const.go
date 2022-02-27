@@ -1,5 +1,11 @@
 package config
 
+const MongoPrimaryNodeURI string = "mongodb://localhost:27017"
+const DBName = "kubinka"
+const CollectionName = "players"
+
+const LogFileName = "log.log"
+
 // Copy this file -> Add copy to .gitignore -> Fill it with stuff you'll need
 
 // var Token string = ""
