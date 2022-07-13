@@ -42,10 +42,10 @@ func New(uri, dbName, colName string) *MongoInstance {
 			Options: options.Index().SetExpireAfterSeconds(0),
 		},
 
-		{
-			Keys:    bson.D{{"discord_id", 1}},
-			Options: nil,
-		},
+		// {
+		// 	Keys:    bson.D{{"discord_id", 1}},
+		// 	Options: nil,
+		// },
 	}
 	_, err = collection.Indexes().CreateMany(context.TODO(), indexes)
 	if err != nil {

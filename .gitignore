@@ -1,0 +1,6 @@
+/.vscode
+/vendor
+config/usrdef.go
+NOTES.md
+log.log
+main

@@ -2,19 +2,16 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"discordgo"
 	"kubinka/changestream"
 	"kubinka/commands"
 	"kubinka/config"
-	"kubinka/db"
-	"kubinka/handlers"
+	"kubinka/dsc"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"discordgo"
 )
 
 func getLogFile(fileName string) *os.File {
@@ -27,13 +24,13 @@ func getLogFile(fileName string) *os.File {
 	return f
 }
 
-func getDiscordSession(token string) *discordgo.Session {
+func newDiscordSession(token string) *discordgo.Session {
 	discord, err := discordgo.New("Bot " + token) // TODO: Make to arg
 	if err != nil {
 		log.Fatal("Could not create session.\n\n\n")
 	}
 	discord.SyncEvents = false
-	discord.AddHandler(handlers.Select)
+	discord.AddHandler(dsc.Select)
 
 	err = discord.Open()
 	if err != nil {
@@ -43,7 +40,7 @@ func getDiscordSession(token string) *discordgo.Session {
 	return discord
 }
 
-func deleteCommands(ds *discordgo.Session) {
+func deleteCommands(ds *discordgo.Session) { // make stuff passed in as params
 	for _, cmd := range commands.Commands {
 		err := ds.ApplicationCommandDelete(
 			ds.State.User.ID,
@@ -66,7 +63,7 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 		)
 		if err != nil {
 			if i > 0 {
-				deleteCommands(ds) // deferred code will not run after fatal or panic
+				deleteCommands(ds)
 			}
 			log.Fatalf("Failed to create command %s:\n %s\n\n\n", cmd.Name, err)
 		}
@@ -74,31 +71,29 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 }
 
 func main() {
+	ds := newDiscordSession(config.Token)
+	defer ds.Close()
+	defer deleteCommands(ds) // Removing commands on bot shutdown
+	createCommands(ds, config.AppID, config.GuildID)
+
 	log.SetOutput(getLogFile(config.LogFileName))
 	log.Print("<<<<< SESSION STARTUP >>>>>\n")
 	defer log.Print("<<<<< SESSION SHUTDOWN >>>>>\n\n\n")
 
-	discord := getDiscordSession(config.Token)
-	defer discord.Close()
-	defer deleteCommands(discord) // Removing commands on bot shutdown
-	createCommands(discord, config.AppID, config.GuildID)
-
 	ctx, cancel := context.WithCancel(context.Background())
-	go changestream.WatchEvents(db.Instance.Collection, ctx, cancel) // Asynchronously watch events
+	go changestream.WatchEvents(ds, ctx, cancel) // Asynchronously watch events
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
-	<-interrupt
 
 	// handling invalidation of collection at shutdown
-	timeout := time.After(3 * time.Second)
 	for {
 		select {
-		case <-ctx.Done():
-			fmt.Println("handled invalidation at shutdown")
+		case <-interrupt:
+			log.Println("Execution stopped by user")
 			return
-		case <-timeout:
-			fmt.Println("invalidation wasn't handled or didn't occur")
+		case <-ctx.Done():
+			log.Println("handled changestream cancelation at shutdown")
 			return
 		default:
 		}

@@ -9,11 +9,9 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func (mi *MongoInstance) InsertPlayer(u *discordgo.User, d time.Duration) error {
+func (mi *MongoInstance) InsertPlayer(u *discordgo.User, t time.Time) error {
 
-	expTimePrimitive := primitive.NewDateTimeFromTime(
-		time.Now().Add(time.Minute * d).UTC(),
-	)
+	expTimePrimitive := primitive.NewDateTimeFromTime(t)
 
 	player := models.Player{
 		DiscordID: u.ID,

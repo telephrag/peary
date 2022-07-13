@@ -1,6 +1,8 @@
 package config
 
-const MongoPrimaryNodeURI string = "mongodb://localhost:27017"
+const MongoPrimaryNodeURI string = "mongodb://localhost:27017,localhost:27020/?replicaSet=rs0"
+
+//const MongoPrimaryNodeURI string = "mongodb+srv://trofchik:gabeismygod228@cluster0.ejcdy.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
 const DBName = "kubinka"
 const CollectionName = "players"
 
