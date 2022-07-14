@@ -30,7 +30,7 @@ func newDiscordSession(token string) *discordgo.Session {
 		log.Fatal("Could not create session.\n\n\n")
 	}
 	discord.SyncEvents = false
-	discord.AddHandler(dsc.Select)
+	discord.AddHandler(dsc.Master) // see "notes 02" in NOTES.md
 
 	err = discord.Open()
 	if err != nil {

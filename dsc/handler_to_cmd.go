@@ -1,8 +1,11 @@
 package dsc
 
-import "discordgo"
+import (
+	"context"
+	"kubinka/deploy"
+)
 
-var HandlerToCmd = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
-	"deploy": Deploy,
-	"return": Return,
+var HandlerToCmd = map[string]func(context.Context) interface{}{
+	"deploy": deploy.Init,
+	"return": nil,
 }
