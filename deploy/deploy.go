@@ -1,4 +1,4 @@
-package deploy
+package cmd_deploy
 
 import (
 	"context"
@@ -12,14 +12,14 @@ import (
 	"github.com/pkg/errors"
 )
 
-type DeployCommand struct {
+type DeployCmd struct {
 	command.Command
-	Err error
-	Ctx context.Context
+	err error
+	ctx context.Context
 }
 
-func Init(context.Context) interface{} {
-	return &DeployCommand{}
+func Init() command.Command {
+	return &DeployCmd{}
 }
 
 func getDeployDuration(i *discordgo.InteractionCreate) time.Time {
@@ -32,7 +32,7 @@ func getDeployDuration(i *discordgo.InteractionCreate) time.Time {
 	return time.Now().Add(time.Minute * time.Duration(m)).UTC()
 }
 
-func (cmd *DeployCommand) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (cmd *DeployCmd) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 	d := getDeployDuration(i)
 
 	// err = db.Instance.InsertPlayer(i.Member.User, d)
@@ -48,7 +48,7 @@ func (cmd *DeployCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	)
 	if err != nil {
 		log.Println(errors.Errorf("Failed to issue role: %w", err))
-		cmd.Err = err
+		cmd.err = err
 		return
 	}
 
@@ -61,19 +61,19 @@ func (cmd *DeployCommand) Handle(s *discordgo.Session, i *discordgo.InteractionC
 	if err != nil {
 		msg := err.(discordgo.RESTError).Message
 		log.Println(errors.Errorf("Failed to respond to the player: %v", msg))
-		cmd.Err = err
+		cmd.err = err
 		return
 	}
 }
 
-func (cmd *DeployCommand) Recover(ctx context.Context) error {
+func (cmd *DeployCmd) Recover(ctx context.Context) error {
 	return nil
 }
 
-func (cmd *DeployCommand) Log(ctx context.Context) error {
+func (cmd *DeployCmd) Log(ctx context.Context) error {
 	return nil
 }
 
-func (cmd *DeployCommand) GetErr() error {
-	return cmd.Err
+func (cmd *DeployCmd) GetErr() error {
+	return cmd.err
 }

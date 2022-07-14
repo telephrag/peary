@@ -1,9 +1,7 @@
 package dsc
 
 import (
-	"context"
 	"discordgo"
-	"kubinka/command"
 	"log"
 )
 
@@ -14,11 +12,7 @@ func Master(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		return
 	}
 
-	cmd, ok := init(context.TODO()).(command.Command)
-	if !ok {
-		log.Println("Couldn't init command state: ", i.ApplicationCommandData().Name)
-		return
-	}
+	cmd := init()
 
 	cmd.Handle(s, i)
 }
