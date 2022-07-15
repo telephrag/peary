@@ -5,15 +5,18 @@ import (
 	"fmt"
 )
 
-func NotifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, e error) error {
+func NotifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, errMsg string) *Nested {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("An error occured during your request: %s", e.Error()),
+			Content: fmt.Sprintf("An error occured during your request: %s", errMsg),
 		},
 	})
 	if err != nil {
-		return ErrFailedSendResponse
+		return &Nested{
+			Event: NotifyUsr,
+			Err:   fmt.Errorf(ErrFailedSendResponse+": %w", err),
+		}
 	}
 
 	return nil

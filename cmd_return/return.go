@@ -2,48 +2,90 @@ package cmd_return
 
 import (
 	"context"
-	"discordgo"
+	"errors"
 	"kubinka/bot_errors"
 	"kubinka/command"
 	"kubinka/config"
+	"kubinka/step"
+	"time"
 )
 
 type ReturnCmd struct {
-	err error
-	ctx context.Context
+	steps     *step.Saga
+	eventName string
+	err       error
 }
 
-func Init() command.Command {
-	return &ReturnCmd{}
+func Init(env *command.Env) command.Command {
+	return &ReturnCmd{
+		steps: step.NewSaga([]step.Step{
+			NewRemoveRoleStep(env.DiscordSession, env.DiscordInteractionCreate),
+			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
+		}),
+		eventName: bot_errors.CmdReturn,
+	}
 }
 
-func (cmd *ReturnCmd) Handle(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	err := s.GuildMemberRoleRemove(
-		config.GuildID,
-		i.Member.User.ID,
-		config.RoleID,
-	)
-	if err != nil {
-		return bot_errors.ErrFailedTakeRole
+func (cmd *ReturnCmd) Handle(ctx context.Context) *bot_errors.Nested {
+
+	timeout := time.After(time.Second * config.CMD_HANDLER_TIMEOUT_SECONDS)
+	dErr := bot_errors.Nested{
+		Event: bot_errors.CmdReturnDo,
+	}
+do:
+	for cmd.steps.Next() != nil {
+		s := cmd.steps.GetStep()
+	retry_do:
+		for {
+			select {
+			case <-timeout:
+				if dErr.Err == nil {
+					dErr.Err = errors.New(bot_errors.ErrHandlerTimeout)
+				}
+				break do
+			default:
+				dErr.Err = s.Do()
+				if dErr.Err == nil {
+					break retry_do
+				}
+			}
+		}
+	}
+	if dErr.Err == nil {
+		return nil
 	}
 
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: "You have returned from deployment.",
-		},
-	})
-	if err != nil {
-		return bot_errors.ErrFailedSendResponse
+	timeout = time.After(time.Second * config.CMD_HANDLER_TIMEOUT_SECONDS)
+	rErr := bot_errors.Nested{
+		Event: bot_errors.CmdReturnRolback,
+	}
+rollback:
+	for cmd.steps.Prev() != nil {
+		s := cmd.steps.GetStep()
+	retry_rb:
+		for {
+			select {
+			case <-timeout:
+				if rErr.Err == nil {
+					rErr.Err = errors.New(bot_errors.ErrHandlerTimeout)
+				}
+				break rollback
+			default:
+				rErr.Err = s.Rollback()
+				if rErr.Err == nil {
+					break retry_rb
+				}
+			}
+		}
 	}
 
-	return nil
+	if rErr.Err != nil {
+		dErr.Next = &rErr
+	}
+
+	return &dErr
 }
 
-func (cmd *ReturnCmd) Recover(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	return bot_errors.ErrFailedToRecover
-}
-
-func (cmd *ReturnCmd) GetErr() error {
-	return cmd.err
+func (cmd *ReturnCmd) Event() string {
+	return cmd.eventName
 }

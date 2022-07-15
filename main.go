@@ -1,11 +1,9 @@
 package main
 
 import (
-	"context"
 	"discordgo"
-	"kubinka/changestream"
 	"kubinka/config"
-	"kubinka/orchestrator"
+	"kubinka/service"
 	"log"
 	"os"
 	"os/signal"
@@ -14,7 +12,7 @@ import (
 )
 
 func getLogFile(fileName string) *os.File {
-	// setting up logging, for some reason it loggin wont work properly
+	// setting up logging, for some reason logging wont work properly
 	// if it was setup inside init()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
@@ -23,25 +21,25 @@ func getLogFile(fileName string) *os.File {
 	return f
 }
 
-func newDiscordSession(token string) (*discordgo.Session, *orchestrator.CmdOrchestrator) {
+func newDiscordSession(token string) (*discordgo.Session, *service.MasterHandler) {
 	discord, err := discordgo.New("Bot " + token) // TODO: Make to arg
 	if err != nil {
 		log.Fatal("Could not create session.\n\n\n")
 	}
 	discord.SyncEvents = false
-	co := orchestrator.New()
-	discord.AddHandler(co.Orchestrate) // see "notes 02" in NOTES.md
+	masterHandler := service.NewMasterHandler()
+	discord.AddHandler(masterHandler.Handle) // see "notes 02" in NOTES.md
 
 	err = discord.Open()
 	if err != nil {
 		log.Fatal("Could not open connection.\n\n\n")
 	}
 
-	return discord, co
+	return discord, masterHandler
 }
 
 func deleteCommands(ds *discordgo.Session) { // make stuff passed in as params
-	for _, cmd := range orchestrator.Commands {
+	for _, cmd := range service.CmdDef {
 		err := ds.ApplicationCommandDelete(
 			ds.State.User.ID,
 			config.GuildID,
@@ -55,8 +53,8 @@ func deleteCommands(ds *discordgo.Session) { // make stuff passed in as params
 
 func createCommands(ds *discordgo.Session, appId string, guildId string) {
 	var err error
-	for i, cmd := range orchestrator.Commands {
-		orchestrator.Commands[i], err = ds.ApplicationCommandCreate(
+	for i, cmd := range service.CmdDef {
+		service.CmdDef[i], err = ds.ApplicationCommandCreate(
 			appId,
 			guildId,
 			cmd,
@@ -71,8 +69,8 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 }
 
 func main() {
-	ds, co := newDiscordSession(config.Token)
-	defer co.HaltUntilAllDone()
+	ds, masterHandler := newDiscordSession(config.Token)
+	defer masterHandler.HaltUntilAllDone()
 	defer ds.Close()
 	defer deleteCommands(ds) // Removing commands on bot shutdown
 	createCommands(ds, config.AppID, config.GuildID)
@@ -81,8 +79,8 @@ func main() {
 	log.Print("<<<<< SESSION STARTUP >>>>>\n")
 	defer log.Print("<<<<< SESSION SHUTDOWN >>>>>\n\n\n")
 
-	ctx, cancel := context.WithCancel(context.Background())
-	go changestream.WatchEvents(ds, ctx, cancel) // Asynchronously watch events
+	// ctx, cancel := context.WithCancel(context.Background())
+	// go changestream.WatchEvents(ds, ctx, cancel) // Asynchronously watch events
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
@@ -93,9 +91,11 @@ func main() {
 		case <-interrupt:
 			log.Println("Execution stopped by user")
 			return
-		case <-ctx.Done():
-			log.Println("handled changestream cancelation at shutdown")
-			return
+			// case <-ctx.Done():
+			// 	log.Println("handled changestream cancelation at shutdown")
+			// 	return
+		case <-masterHandler.Ctx.Done():
+			masterHandler.HaltUntilAllDone()
 		default:
 		}
 		time.Sleep(time.Millisecond * 500)

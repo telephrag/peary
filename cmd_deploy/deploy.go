@@ -2,86 +2,94 @@ package cmd_deploy
 
 import (
 	"context"
-	"discordgo"
-	"fmt"
+	"errors"
 	"kubinka/bot_errors"
 	"kubinka/command"
 	"kubinka/config"
-	"log"
+	"kubinka/step"
 	"time"
 )
 
 type DeployCmd struct {
-	err error
-	ctx context.Context
+	steps     *step.Saga
+	eventName string
+	err       error
 }
 
-func Init() command.Command {
-	return &DeployCmd{}
+func Init(env *command.Env) command.Command {
+	return &DeployCmd{
+		steps: step.NewSaga([]step.Step{
+			NewGiveRoleStep(env.DiscordSession, env.DiscordInteractionCreate),
+			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
+		}),
+		eventName: bot_errors.CmdDeploy,
+	}
 }
 
-func getDeployDuration(i *discordgo.InteractionCreate) time.Time {
-	opt := i.ApplicationCommandData().Options
-	m := opt[0].IntValue()
-	if len(opt) > 1 {
-		m += opt[1].IntValue() * 60
+func (cmd *DeployCmd) Handle(ctx context.Context) *bot_errors.Nested {
+
+	timeout := time.After(time.Second * config.CMD_HANDLER_TIMEOUT_SECONDS)
+	dErr := bot_errors.Nested{
+		Event: bot_errors.CmdDeployDo,
+	}
+do:
+	for cmd.steps.Next() != nil {
+		s := cmd.steps.GetStep()
+	retry_do:
+		for {
+			select {
+			case <-timeout:
+				if dErr.Err == nil {
+					dErr.Err = errors.New(bot_errors.ErrHandlerTimeout)
+				}
+				break do
+			case <-ctx.Done():
+				if dErr.Err == nil {
+					dErr.Err = errors.New(bot_errors.ErrSomewhereElse)
+				}
+			default:
+				dErr.Err = s.Do()
+				if dErr.Err == nil {
+					break retry_do
+				}
+			}
+		}
+	}
+	if dErr.Err == nil {
+		return nil
 	}
 
-	return time.Now().Add(time.Minute * time.Duration(m)).UTC()
+	timeout = time.After(time.Second * config.CMD_HANDLER_TIMEOUT_SECONDS)
+	rErr := bot_errors.Nested{
+		Event: bot_errors.CmdDeployRollback,
+	}
+rollback:
+	for cmd.steps.Prev() != nil {
+		s := cmd.steps.GetStep()
+	retry_rb:
+		for {
+			select {
+			case <-timeout:
+				if rErr.Err == nil {
+					rErr.Err = errors.New(bot_errors.ErrHandlerTimeout)
+				}
+				break rollback
+			default:
+				rErr.Err = s.Rollback()
+				if rErr.Err == nil {
+					break retry_rb
+				}
+			}
+		}
+	}
+
+	if rErr.Err != nil {
+		dErr.Next = &rErr
+	}
+
+	return &dErr
 }
 
-func (cmd *DeployCmd) Handle(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) error {
-
-	d := getDeployDuration(i)
-
-	// err = db.Instance.InsertPlayer(i.Member.User, d)
-	// if err != nil {
-	// 	log.Println(errors.Errorf("Failed to add record to db: %w", err))
-	// 	return
-	// }
-
-	select {
-	case <-ctx.Done():
-		bot_errors.NotifyUser(s, i, bot_errors.ErrSomewhereElse)
-		log.Println(bot_errors.ErrSomewhereElse)
-		return bot_errors.ErrSomewhereElse
-	default:
-	}
-
-	err := s.GuildMemberRoleAdd(
-		config.GuildID,
-		i.Member.User.ID,
-		config.RoleID,
-	)
-	if err != nil {
-		return bot_errors.ErrFailedGiveRole
-	}
-
-	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Content: fmt.Sprintf("You have been deployed till %02d:%02d", d.Hour(), d.Minute()),
-		},
-	})
-	if err != nil {
-		return bot_errors.ErrFailedSendResponse
-	}
-
-	return err
-}
-
-func (cmd *DeployCmd) Recover(s *discordgo.Session, i *discordgo.InteractionCreate) error {
-	err := s.GuildMemberRoleRemove(
-		config.GuildID,
-		i.Member.User.ID,
-		config.RoleID,
-	)
-	if err != nil {
-		return bot_errors.ErrFailedTakeRole
-	}
-	return nil
-}
-
-func (cmd *DeployCmd) GetErr() error {
-	return cmd.err
+func (cmd *DeployCmd) Event() string {
+	return cmd.eventName
 }

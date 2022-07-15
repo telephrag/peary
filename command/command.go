@@ -3,10 +3,18 @@ package command
 import (
 	"context"
 	"discordgo"
+	"kubinka/bot_errors"
+
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type Command interface {
-	Handle(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) error
-	Recover(s *discordgo.Session, i *discordgo.InteractionCreate) error
-	GetErr() error
+	Handle(ctx context.Context) *bot_errors.Nested
+	Event() string
+}
+
+type Env struct {
+	DiscordSession           *discordgo.Session
+	DiscordInteractionCreate *discordgo.InteractionCreate
+	DBConn                   *mongo.Client
 }
