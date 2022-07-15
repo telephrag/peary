@@ -1,12 +1,13 @@
 package config
 
-const MongoPrimaryNodeURI string = "mongodb://localhost:27017,localhost:27020/?replicaSet=rs0"
+const MONGO_URI = "mongodb://localhost:27017,localhost:27020/?replicaSet=rs0"
 
-//const MongoPrimaryNodeURI string = "mongodb+srv://trofchik:gabeismygod228@cluster0.ejcdy.mongodb.net/myFirstDatabase?retryWrites=true&w=majority"
-const DBName = "kubinka"
-const CollectionName = "players"
+const MONGO_DB_NAME = "kubinka"
+const MONGO_COLLECTION_NAME = "players"
 
-const LogFileName = "log.log"
+const LOG_FILE_NAME = "log.log"
+
+const CMD_HANDLER_TIMEOUT_SECONDS = 5
 
 // Copy this file -> Add copy to .gitignore -> Fill it with stuff you'll need
 

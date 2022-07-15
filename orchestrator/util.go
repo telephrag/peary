@@ -1,4 +1,4 @@
-package dsc
+package orchestrator
 
 import (
 	"discordgo"

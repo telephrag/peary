@@ -3,11 +3,9 @@ package cmd_return
 import (
 	"context"
 	"discordgo"
+	"kubinka/bot_errors"
 	"kubinka/command"
 	"kubinka/config"
-	"log"
-
-	"github.com/pkg/errors"
 )
 
 type ReturnCmd struct {
@@ -19,17 +17,14 @@ func Init() command.Command {
 	return &ReturnCmd{}
 }
 
-func (cmd *ReturnCmd) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
+func (cmd *ReturnCmd) Handle(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) error {
 	err := s.GuildMemberRoleRemove(
 		config.GuildID,
 		i.Member.User.ID,
 		config.RoleID,
 	)
 	if err != nil {
-		msg := err.(discordgo.RESTError).Message
-		log.Print(errors.Errorf("Failed to remove role: %v\n", msg))
-		cmd.err = err
-		return
+		return bot_errors.ErrFailedTakeRole
 	}
 
 	err = s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
@@ -39,16 +34,16 @@ func (cmd *ReturnCmd) Handle(s *discordgo.Session, i *discordgo.InteractionCreat
 		},
 	})
 	if err != nil {
-		msg := err.(discordgo.RESTError).Message
-		log.Println(errors.Errorf("Failed to respond to the player: %v", msg))
-		cmd.err = err
-		return
+		return bot_errors.ErrFailedSendResponse
 	}
-}
 
-func (cmd *ReturnCmd) Recover(ctx context.Context) error {
 	return nil
 }
+
+func (cmd *ReturnCmd) Recover(s *discordgo.Session, i *discordgo.InteractionCreate) error {
+	return bot_errors.ErrFailedToRecover
+}
+
 func (cmd *ReturnCmd) GetErr() error {
 	return cmd.err
 }

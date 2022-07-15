@@ -11,9 +11,9 @@ import (
 )
 
 var Instance *MongoInstance = New(
-	config.MongoPrimaryNodeURI,
-	config.DBName,
-	config.CollectionName,
+	config.MONGO_URI,
+	config.MONGO_DB_NAME,
+	config.MONGO_COLLECTION_NAME,
 )
 
 type MongoInstance struct {

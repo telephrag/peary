@@ -6,7 +6,7 @@ import (
 )
 
 type Command interface {
-	Handle(s *discordgo.Session, i *discordgo.InteractionCreate)
-	Recover(ctx context.Context) error
+	Handle(ctx context.Context, s *discordgo.Session, i *discordgo.InteractionCreate) error
+	Recover(s *discordgo.Session, i *discordgo.InteractionCreate) error
 	GetErr() error
 }

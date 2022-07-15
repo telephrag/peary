@@ -4,9 +4,8 @@ import (
 	"context"
 	"discordgo"
 	"kubinka/changestream"
-	"kubinka/commands"
 	"kubinka/config"
-	"kubinka/dsc"
+	"kubinka/orchestrator"
 	"log"
 	"os"
 	"os/signal"
@@ -24,24 +23,25 @@ func getLogFile(fileName string) *os.File {
 	return f
 }
 
-func newDiscordSession(token string) *discordgo.Session {
+func newDiscordSession(token string) (*discordgo.Session, *orchestrator.CmdOrchestrator) {
 	discord, err := discordgo.New("Bot " + token) // TODO: Make to arg
 	if err != nil {
 		log.Fatal("Could not create session.\n\n\n")
 	}
 	discord.SyncEvents = false
-	discord.AddHandler(dsc.Master) // see "notes 02" in NOTES.md
+	co := orchestrator.New()
+	discord.AddHandler(co.Orchestrate) // see "notes 02" in NOTES.md
 
 	err = discord.Open()
 	if err != nil {
 		log.Fatal("Could not open connection.\n\n\n")
 	}
 
-	return discord
+	return discord, co
 }
 
 func deleteCommands(ds *discordgo.Session) { // make stuff passed in as params
-	for _, cmd := range commands.Commands {
+	for _, cmd := range orchestrator.Commands {
 		err := ds.ApplicationCommandDelete(
 			ds.State.User.ID,
 			config.GuildID,
@@ -55,8 +55,8 @@ func deleteCommands(ds *discordgo.Session) { // make stuff passed in as params
 
 func createCommands(ds *discordgo.Session, appId string, guildId string) {
 	var err error
-	for i, cmd := range commands.Commands {
-		commands.Commands[i], err = ds.ApplicationCommandCreate(
+	for i, cmd := range orchestrator.Commands {
+		orchestrator.Commands[i], err = ds.ApplicationCommandCreate(
 			appId,
 			guildId,
 			cmd,
@@ -71,12 +71,13 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 }
 
 func main() {
-	ds := newDiscordSession(config.Token)
+	ds, co := newDiscordSession(config.Token)
+	defer co.HaltUntilAllDone()
 	defer ds.Close()
 	defer deleteCommands(ds) // Removing commands on bot shutdown
 	createCommands(ds, config.AppID, config.GuildID)
 
-	log.SetOutput(getLogFile(config.LogFileName))
+	log.SetOutput(getLogFile(config.LOG_FILE_NAME))
 	log.Print("<<<<< SESSION STARTUP >>>>>\n")
 	defer log.Print("<<<<< SESSION SHUTDOWN >>>>>\n\n\n")
 

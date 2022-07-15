@@ -16,7 +16,7 @@ import (
 
 type csEvent struct {
 	OperationType string        `bson:"operationType"`
-	FullDocument  models.Player `bson:fullDocument`
+	FullDocument  models.Player `bson:"fullDocument"`
 }
 
 func iterateChangeStream(stream *mongo.ChangeStream, ds *discordgo.Session, ctx context.Context, cancel context.CancelFunc) {
