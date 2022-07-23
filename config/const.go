@@ -1,9 +1,7 @@
 package config
 
-const MONGO_URI = "mongodb://localhost:27017,localhost:27020/?replicaSet=rs0"
-
-const MONGO_DB_NAME = "kubinka"
-const MONGO_COLLECTION_NAME = "players"
+const DB_NAME = "kubinka"
+const PLAYERS_COLLECTION_NAME = "players"
 
 const LOG_FILE_NAME = "log.log"
 

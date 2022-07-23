@@ -21,9 +21,9 @@ func NewGiveRoleStep(s *discordgo.Session, i *discordgo.InteractionCreate) *Give
 
 func (s *GiveRoleStep) Do() error {
 	err := s.DiscordSession.GuildMemberRoleAdd( // TODO: discordgo.RESTError?
-		config.GuildID,
+		config.BOT_GUILD_ID,
 		s.InteractionCreate.Member.User.ID,
-		config.RoleID,
+		config.BOT_ROLE_ID,
 	)
 	if err != nil {
 		// TODO: Check if actual error is outputted not just bytes
@@ -35,9 +35,9 @@ func (s *GiveRoleStep) Do() error {
 
 func (s *GiveRoleStep) Rollback() error {
 	err := s.DiscordSession.GuildMemberRoleRemove(
-		config.GuildID,
+		config.BOT_GUILD_ID,
 		s.InteractionCreate.Member.User.ID,
-		config.RoleID,
+		config.BOT_ROLE_ID,
 	)
 	if err != nil {
 		return fmt.Errorf(bot_errors.ErrFailedTakeRole+": %w", err)

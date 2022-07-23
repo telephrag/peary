@@ -4,3 +4,4 @@ config/usrdef.go
 NOTES.md
 log.log
 main
+kubinka.db

@@ -4,8 +4,7 @@ import (
 	"context"
 	"discordgo"
 	"kubinka/bot_errors"
-
-	"go.mongodb.org/mongo-driver/mongo"
+	"kubinka/strg"
 )
 
 type Command interface {
@@ -16,5 +15,5 @@ type Command interface {
 type Env struct {
 	DiscordSession           *discordgo.Session
 	DiscordInteractionCreate *discordgo.InteractionCreate
-	DBConn                   *mongo.Client
+	DBConn                   *strg.BoltConn
 }

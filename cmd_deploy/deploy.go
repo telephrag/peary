@@ -20,6 +20,7 @@ func Init(env *command.Env) command.Command {
 	return &DeployCmd{
 		steps: step.NewSaga([]step.Step{
 			NewGiveRoleStep(env.DiscordSession, env.DiscordInteractionCreate),
+			NewAddToDBStep(env.DBConn, env.DiscordInteractionCreate),
 			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
 		}),
 		eventName: bot_errors.CmdDeploy,
@@ -32,7 +33,7 @@ func (cmd *DeployCmd) Handle(ctx context.Context) *bot_errors.Nested {
 	dErr := bot_errors.Nested{
 		Event: bot_errors.CmdDeployDo,
 	}
-do:
+do: // iterate all steps in command
 	for cmd.steps.Next() != nil {
 		s := cmd.steps.GetStep()
 	retry_do:
@@ -63,7 +64,7 @@ do:
 	rErr := bot_errors.Nested{
 		Event: bot_errors.CmdDeployRollback,
 	}
-rollback:
+rollback: // reverse iterate from point of failure
 	for cmd.steps.Prev() != nil {
 		s := cmd.steps.GetStep()
 	retry_rb:

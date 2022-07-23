@@ -4,6 +4,7 @@ import (
 	"discordgo"
 	"kubinka/config"
 	"kubinka/service"
+	"kubinka/strg"
 	"log"
 	"os"
 	"os/signal"
@@ -21,13 +22,13 @@ func getLogFile(fileName string) *os.File {
 	return f
 }
 
-func newDiscordSession(token string) (*discordgo.Session, *service.MasterHandler) {
+func newDiscordSession(token string, c *strg.BoltConn) (*discordgo.Session, *service.MasterHandler) {
 	discord, err := discordgo.New("Bot " + token) // TODO: Make to arg
 	if err != nil {
 		log.Fatal("Could not create session.\n\n\n")
 	}
 	discord.SyncEvents = false
-	masterHandler := service.NewMasterHandler()
+	masterHandler := service.NewMasterHandler(c)
 	discord.AddHandler(masterHandler.Handle) // see "notes 02" in NOTES.md
 
 	err = discord.Open()
@@ -42,7 +43,7 @@ func deleteCommands(ds *discordgo.Session) { // make stuff passed in as params
 	for _, cmd := range service.CmdDef {
 		err := ds.ApplicationCommandDelete(
 			ds.State.User.ID,
-			config.GuildID,
+			config.BOT_GUILD_ID,
 			cmd.ID,
 		)
 		if err != nil {
@@ -69,18 +70,21 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 }
 
 func main() {
-	ds, masterHandler := newDiscordSession(config.Token)
+	log.SetOutput(getLogFile(config.LOG_FILE_NAME))
+	log.Print("SESSION STARTUP\n")
+	defer log.Print("SESSION SHUTDOWN\n\n\n")
+
+	db, err := strg.Connect(config.DB_NAME, config.PLAYERS_COLLECTION_NAME)
+	if err != nil {
+		log.Panicf("failed to connect to db: %v", err)
+	}
+
+	ds, masterHandler := newDiscordSession(config.BOT_TOKEN, db)
 	defer masterHandler.HaltUntilAllDone()
 	defer ds.Close()
+
+	createCommands(ds, config.BOT_APP_ID, config.BOT_GUILD_ID)
 	defer deleteCommands(ds) // Removing commands on bot shutdown
-	createCommands(ds, config.AppID, config.GuildID)
-
-	log.SetOutput(getLogFile(config.LOG_FILE_NAME))
-	log.Print("<<<<< SESSION STARTUP >>>>>\n")
-	defer log.Print("<<<<< SESSION SHUTDOWN >>>>>\n\n\n")
-
-	// ctx, cancel := context.WithCancel(context.Background())
-	// go changestream.WatchEvents(ds, ctx, cancel) // Asynchronously watch events
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
@@ -91,9 +95,6 @@ func main() {
 		case <-interrupt:
 			log.Println("Execution stopped by user")
 			return
-			// case <-ctx.Done():
-			// 	log.Println("handled changestream cancelation at shutdown")
-			// 	return
 		case <-masterHandler.Ctx.Done():
 			masterHandler.HaltUntilAllDone()
 		default:

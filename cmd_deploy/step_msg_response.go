@@ -20,6 +20,7 @@ func NewMsgResponseStep(s *discordgo.Session, i *discordgo.InteractionCreate) *M
 }
 
 func (s *MsgResponseStep) Do() error {
+	// wont match with real expiration time but that's not critical
 	d := getDeployDuration(s.InteractionCreate)
 
 	err := s.DiscordSession.InteractionRespond(

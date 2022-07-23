@@ -20,6 +20,7 @@ func Init(env *command.Env) command.Command {
 	return &ReturnCmd{
 		steps: step.NewSaga([]step.Step{
 			NewRemoveRoleStep(env.DiscordSession, env.DiscordInteractionCreate),
+			NewDeleteFromDBStep(env.DBConn, env.DiscordInteractionCreate),
 			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
 		}),
 		eventName: bot_errors.CmdReturn,

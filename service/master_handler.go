@@ -6,26 +6,25 @@ import (
 	"errors"
 	"kubinka/bot_errors"
 	"kubinka/command"
+	"kubinka/strg"
 	"log"
 	"sync/atomic"
 	"time"
-
-	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type MasterHandler struct {
 	Ctx          context.Context
 	Cancel       context.CancelFunc
 	RunningCount int32
-	DBConn       *mongo.Client
+	DBConn       *strg.BoltConn
 }
 
-func NewMasterHandler() *MasterHandler {
+func NewMasterHandler(dbConn *strg.BoltConn) *MasterHandler {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &MasterHandler{
 		Ctx:    ctx,
 		Cancel: cancel,
-		// DBConn: nil, *TODO*
+		DBConn: dbConn,
 	}
 }
 
@@ -46,7 +45,10 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	cmd := init(mh.getEnv(s, i))
-	mhErr := bot_errors.NewBotErr(i)
+	mhErr := bot_errors.Err{
+		Session: i.Member.User.ID,
+		Event:   cmd.Event(),
+	}
 
 	select {
 	case <-mh.Ctx.Done():
@@ -54,18 +56,14 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 			Event: cmd.Event(),
 			Err:   errors.New(bot_errors.ErrSomewhereElse),
 		})
-		// move SessionID into command.Command?
-		// make anything that returns error modify BotError instead to set field values?
-		// preserve bot_errors.ErrSomewhereElse here
-		// ErrSomewhereElse -- error in command itself
-		//  L Error inside NotifyUser()
+
 		err := bot_errors.NotifyUser(s, i, bot_errors.ErrSomewhereElse)
 		if err != nil {
 			mhErr.Nest(err)
-			// TODO
 			mh.Cancel()
-			return
 		}
+		log.Print(mhErr.String())
+		return
 	default:
 	}
 
@@ -75,14 +73,14 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	err := cmd.Handle(mh.Ctx)
 	if err != nil {
 		mhErr.Nest(err)
-		// log.Printf("Err in command %s: %s\n", i.ApplicationCommandData().Name, err.Error())
 		err := bot_errors.NotifyUser(s, i, err.Next.Err.Error())
 		if err != nil {
 			mhErr.Nest(err)
-			log.Println(err)
 			mh.Cancel()
 		}
 	}
+	log.Print(mhErr.String())
+
 }
 
 func (mh *MasterHandler) HaltUntilAllDone() {
