@@ -1,8 +1,9 @@
 package cmd_deploy
 
 import (
-	"discordgo"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func getDeployDuration(i *discordgo.InteractionCreate) time.Time {

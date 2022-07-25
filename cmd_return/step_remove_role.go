@@ -1,10 +1,11 @@
 package cmd_return
 
 import (
-	"discordgo"
 	"fmt"
 	"kubinka/bot_errors"
 	"kubinka/config"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type RemoveRoleStep struct {

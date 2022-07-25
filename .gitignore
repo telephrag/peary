@@ -2,6 +2,7 @@
 /vendor
 config/usrdef.go
 NOTES.md
+old.log
 log.log
 main
 kubinka.db

@@ -1,10 +1,11 @@
 package service
 
 import (
-	"discordgo"
 	"kubinka/cmd_deploy"
 	"kubinka/cmd_return"
 	"kubinka/command"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 var CmdDef = []*discordgo.ApplicationCommand{

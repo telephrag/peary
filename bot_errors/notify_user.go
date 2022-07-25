@@ -1,8 +1,9 @@
 package bot_errors
 
 import (
-	"discordgo"
 	"fmt"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func NotifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, errMsg string) *Nested {

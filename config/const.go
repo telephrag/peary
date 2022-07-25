@@ -1,11 +1,14 @@
 package config
 
 const DB_NAME = "kubinka"
-const PLAYERS_COLLECTION_NAME = "players"
+const DB_PLAYERS_BUCKET_NAME = "players"
+const DB_CHANGESTREAM_SLEEP_SECONDS = db_changestream_sleep_seconds_debug // 60
+const db_changestream_sleep_seconds_debug = 3
 
 const LOG_FILE_NAME = "log.log"
 
-const CMD_HANDLER_TIMEOUT_SECONDS = 5
+const CMD_HANDLER_TIMEOUT_SECONDS = 5 // cmd_handler_timeout_seconds_debug // 5
+// const cmd_handler_timeout_seconds_debug = 360
 
 // Copy this file -> Add copy to .gitignore -> Fill it with stuff you'll need
 

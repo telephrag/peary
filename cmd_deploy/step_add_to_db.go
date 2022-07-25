@@ -1,9 +1,10 @@
 package cmd_deploy
 
 import (
-	"discordgo"
 	"kubinka/models"
 	"kubinka/strg"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type AddToDBStep struct {

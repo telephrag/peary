@@ -8,7 +8,7 @@ import (
 )
 
 func TestMasterHandler(t *testing.T) {
-	mh := NewMasterHandler(nil)
+	mh := NewMasterHandler(nil, nil, nil)
 	go func() {
 		time.Sleep(time.Millisecond * 5)
 		mh.Cancel()

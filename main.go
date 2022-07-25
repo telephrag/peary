@@ -1,7 +1,7 @@
 package main
 
 import (
-	"discordgo"
+	"context"
 	"kubinka/config"
 	"kubinka/service"
 	"kubinka/strg"
@@ -9,7 +9,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func getLogFile(fileName string) *os.File {
@@ -22,14 +23,19 @@ func getLogFile(fileName string) *os.File {
 	return f
 }
 
-func newDiscordSession(token string, c *strg.BoltConn) (*discordgo.Session, *service.MasterHandler) {
-	discord, err := discordgo.New("Bot " + token) // TODO: Make to arg
+func newDiscordSession(
+	ctx context.Context,
+	cancel context.CancelFunc,
+	token string,
+	c *strg.BoltConn,
+) (*discordgo.Session, *service.MasterHandler) {
+	discord, err := discordgo.New("Bot " + token)
 	if err != nil {
 		log.Fatal("Could not create session.\n\n\n")
 	}
 	discord.SyncEvents = false
-	masterHandler := service.NewMasterHandler(c)
-	discord.AddHandler(masterHandler.Handle) // see "notes 02" in NOTES.md
+	masterHandler := service.NewMasterHandler(ctx, cancel, c)
+	discord.AddHandler(masterHandler.Handle)
 
 	err = discord.Open()
 	if err != nil {
@@ -70,35 +76,55 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 }
 
 func main() {
-	log.SetOutput(getLogFile(config.LOG_FILE_NAME))
+	logFile := getLogFile(config.LOG_FILE_NAME)
+	defer logFile.Close()
+	log.SetOutput(logFile)
 	log.Print("SESSION STARTUP\n")
 	defer log.Print("SESSION SHUTDOWN\n\n\n")
 
-	db, err := strg.Connect(config.DB_NAME, config.PLAYERS_COLLECTION_NAME)
+	db, err := strg.Connect(config.DB_NAME, config.DB_PLAYERS_BUCKET_NAME)
 	if err != nil {
 		log.Panicf("failed to connect to db: %v", err)
 	}
+	defer db.Close() // works fine, wtf ???
+	// defer func() {
+	// 	if err := db.Close(); err != nil { // will close normally in debug mode
+	// 		log.Panicf("error closing db conn: %v", err) // will stuck otherwise
+	// 	}
+	// }()
 
-	ds, masterHandler := newDiscordSession(config.BOT_TOKEN, db)
-	defer masterHandler.HaltUntilAllDone()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	ds, masterHandler := newDiscordSession(ctx, cancel, config.BOT_TOKEN, db)
+	defer masterHandler.Cancel()
+	// defer masterHandler.HaltUntilAllDone()
 	defer ds.Close()
 
 	createCommands(ds, config.BOT_APP_ID, config.BOT_GUILD_ID)
 	defer deleteCommands(ds) // Removing commands on bot shutdown
 
+	go func() {
+		err = db.WatchExpirations(ctx, ds)
+		if err != nil {
+			log.Printf("error while watching deployments expirations: %s", err.Error())
+			masterHandler.Cancel()
+		}
+	}()
+
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
-
-	// handling invalidation of collection at shutdown
 	for {
 		select {
 		case <-interrupt:
 			log.Println("Execution stopped by user")
-			return
+			masterHandler.Cancel()
+			return // why return doesn't work here?
+			// or does it? cause I've seen break work only in debug mode
 		case <-masterHandler.Ctx.Done():
-			masterHandler.HaltUntilAllDone()
-		default:
+			log.Println("ctx cancelled")
+			return
+			// default:
+			// 	time.Sleep(time.Millisecond * 100)
 		}
-		time.Sleep(time.Millisecond * 500)
 	}
 }

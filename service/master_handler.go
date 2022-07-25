@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"discordgo"
 	"errors"
 	"kubinka/bot_errors"
 	"kubinka/command"
@@ -10,6 +9,8 @@ import (
 	"log"
 	"sync/atomic"
 	"time"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type MasterHandler struct {
@@ -19,8 +20,7 @@ type MasterHandler struct {
 	DBConn       *strg.BoltConn
 }
 
-func NewMasterHandler(dbConn *strg.BoltConn) *MasterHandler {
-	ctx, cancel := context.WithCancel(context.Background())
+func NewMasterHandler(ctx context.Context, cancel context.CancelFunc, dbConn *strg.BoltConn) *MasterHandler {
 	return &MasterHandler{
 		Ctx:    ctx,
 		Cancel: cancel,
@@ -51,7 +51,7 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	select {
-	case <-mh.Ctx.Done():
+	case <-mh.Ctx.Done(): // cancellation of context means breakage of state somewhere
 		mhErr.Nest(&bot_errors.Nested{
 			Event: cmd.Event(),
 			Err:   errors.New(bot_errors.ErrSomewhereElse),
@@ -63,7 +63,7 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 			mh.Cancel()
 		}
 		log.Print(mhErr.String())
-		return
+		return // do not handle any more commands to not risk breaking state even more
 	default:
 	}
 
@@ -87,5 +87,4 @@ func (mh *MasterHandler) HaltUntilAllDone() {
 	for atomic.LoadInt32(&mh.RunningCount) != 0 {
 		time.Sleep(time.Millisecond * 100)
 	}
-	mh.Cancel()
 }

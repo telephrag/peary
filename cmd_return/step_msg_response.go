@@ -1,10 +1,11 @@
 package cmd_return
 
 import (
-	"discordgo"
 	"errors"
 	"fmt"
 	"kubinka/bot_errors"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 type MsgResponseStep struct {

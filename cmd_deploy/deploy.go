@@ -45,7 +45,8 @@ do: // iterate all steps in command
 				}
 				break do
 			case <-ctx.Done():
-				if dErr.Err == nil {
+				// /deploy should not continue execution since its completion in context of failure...
+				if dErr.Err == nil { // can break state
 					dErr.Err = errors.New(bot_errors.ErrSomewhereElse)
 				}
 			default:

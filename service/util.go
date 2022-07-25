@@ -1,8 +1,9 @@
 package service
 
 import (
-	"discordgo"
 	"log"
+
+	"github.com/bwmarrin/discordgo"
 )
 
 func logCommand(s *discordgo.Session, i *discordgo.InteractionCreate, err error) {
