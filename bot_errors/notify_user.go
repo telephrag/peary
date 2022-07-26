@@ -6,7 +6,7 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-func NotifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, errMsg string) *Nested {
+func NotifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, errMsg string) error {
 	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 		Type: discordgo.InteractionResponseChannelMessageWithSource,
 		Data: &discordgo.InteractionResponseData{
@@ -14,10 +14,7 @@ func NotifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, errMsg str
 		},
 	})
 	if err != nil {
-		return &Nested{
-			Event: NotifyUsr,
-			Err:   fmt.Errorf(ErrFailedSendResponse+": %w", err),
-		}
+		return New(i.Member.User.ID, NotifyUsr, fmt.Errorf("%s: %w", ErrFailedSendResponse, err))
 	}
 
 	return nil

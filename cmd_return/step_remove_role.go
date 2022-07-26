@@ -27,7 +27,11 @@ func (s *RemoveRoleStep) Do() error {
 		config.BOT_ROLE_ID,
 	)
 	if err != nil {
-		return fmt.Errorf(bot_errors.ErrFailedTakeRole+": %w", err)
+		return bot_errors.New(
+			s.InteractionCreate.Member.User.ID,
+			bot_errors.CmdReturnDo,
+			fmt.Errorf("%s: %w", bot_errors.ErrFailedTakeRole, err),
+		)
 	}
 
 	return nil
@@ -36,5 +40,9 @@ func (s *RemoveRoleStep) Do() error {
 func (s *RemoveRoleStep) Rollback() error {
 	// if we removed role already, better leave it like this even if user gets no response
 	// which is better than receiving pings you didn't sign for
-	return fmt.Errorf(bot_errors.ErrFailedToRecover)
+	return bot_errors.New(
+		s.InteractionCreate.Member.User.ID,
+		bot_errors.CmdReturnRollback,
+		bot_errors.ErrFailedToRecover,
+	)
 }

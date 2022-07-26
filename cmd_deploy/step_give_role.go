@@ -28,7 +28,11 @@ func (s *GiveRoleStep) Do() error {
 	)
 	if err != nil {
 		// TODO: Check if actual error is outputted not just bytes
-		return fmt.Errorf(bot_errors.ErrFailedGiveRole+": %w", err)
+		return bot_errors.New(
+			s.InteractionCreate.Member.User.ID,
+			bot_errors.CmdDeployDo,
+			fmt.Errorf("%s: %w", bot_errors.ErrFailedGiveRole, err),
+		)
 	}
 
 	return nil
@@ -41,7 +45,11 @@ func (s *GiveRoleStep) Rollback() error {
 		config.BOT_ROLE_ID,
 	)
 	if err != nil {
-		return fmt.Errorf(bot_errors.ErrFailedTakeRole+": %w", err)
+		return bot_errors.New(
+			s.InteractionCreate.Member.User.ID,
+			bot_errors.CmdDeployRollback,
+			fmt.Errorf("%s: %w", bot_errors.ErrFailedTakeRole, err),
+		)
 	}
 
 	return nil

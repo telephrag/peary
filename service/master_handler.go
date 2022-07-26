@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"kubinka/bot_errors"
 	"kubinka/command"
 	"kubinka/strg"
@@ -45,41 +44,33 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 
 	cmd := init(mh.getEnv(s, i))
-	mhErr := bot_errors.Err{
-		Session: i.Member.User.ID,
-		Event:   cmd.Event(),
-	}
 
 	select {
-	case <-mh.Ctx.Done(): // cancellation of context means breakage of state somewhere
-		mhErr.Nest(&bot_errors.Nested{
-			Event: cmd.Event(),
-			Err:   errors.New(bot_errors.ErrSomewhereElse),
-		})
-
-		err := bot_errors.NotifyUser(s, i, bot_errors.ErrSomewhereElse)
-		if err != nil {
-			mhErr.Nest(err)
-			mh.Cancel()
-		}
-		log.Print(mhErr.String())
-		return // do not handle any more commands to not risk breaking state even more
+	case <-mh.Ctx.Done(): // cancellation of context means breakage of state somewhere...
+		mhErr := bot_errors.New(
+			i.Member.User.ID,
+			cmd.Event(),
+			bot_errors.ErrSomewhereElse,
+		).Nest(
+			*bot_errors.NotifyUser(s, i, bot_errors.ErrSomewhereElse.Error()).(*bot_errors.Err),
+		)
+		log.Print(mhErr)
+		return // ... so, do not handle any more commands to not risk breaking state even more
 	default:
 	}
 
 	atomic.AddInt32(&mh.RunningCount, 1)
 	defer atomic.AddInt32(&mh.RunningCount, -1)
 
-	err := cmd.Handle(mh.Ctx)
-	if err != nil {
-		mhErr.Nest(err)
-		err := bot_errors.NotifyUser(s, i, err.Next.Err.Error())
+	handlerErr := cmd.Handle(mh.Ctx)
+	if handlerErr != nil {
+		err := bot_errors.NotifyUser(s, i, handlerErr.Error())
 		if err != nil {
-			mhErr.Nest(err)
+			handlerErr.(*bot_errors.Err).Nest(err)
 			mh.Cancel()
 		}
+		log.Print(handlerErr)
 	}
-	log.Print(mhErr.String())
 
 }
 

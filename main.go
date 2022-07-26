@@ -104,9 +104,9 @@ func main() {
 	defer deleteCommands(ds) // Removing commands on bot shutdown
 
 	go func() {
-		err = db.WatchExpirations(ctx, ds)
+		err := db.WatchExpirations(ctx, ds)
 		if err != nil {
-			log.Printf("error while watching deployments expirations: %s", err.Error())
+			log.Print(err)
 			masterHandler.Cancel()
 		}
 	}()

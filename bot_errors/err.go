@@ -1,41 +1,70 @@
 package bot_errors
 
-import (
-	"fmt"
-)
-
 type Err struct {
-	Session string // doubles as session id from taking role to losing it by one way or another
-	Event   string
-	Next    *Nested
+	session string
+	event   string
+	err     error
+	next    *Err
 }
 
-func (e *Err) Nest(n *Nested) {
-	tail := e.Next
-	for tail != nil {
-		tail = tail.Next
+func New(session, event string, err error) *Err {
+	return &Err{
+		session: session,
+		event:   event,
+		err:     err,
 	}
-	tail = n
 }
 
-func (e *Err) String() string {
-	res := e.Session + " " + e.Event + "\n"
-	nested := e.Next
-	depth := 1
-	for nested != nil {
+func (e *Err) Nest(child error) *Err {
+	tail := e
+	for tail.next != nil {
+		tail = tail.next
+	}
+
+	if childAsErr, ok := child.(*Err); ok {
+		tail.next = childAsErr
+		return e
+	}
+
+	tail.next = New("", "", child)
+	return e
+}
+
+func (e *Err) strln() string {
+	return e.session + " " + e.event + " " + e.err.Error() + "\n"
+}
+
+func (e *Err) Unwrap() error { // test
+	tail := e
+	if tail.next == nil {
+		return tail
+	}
+
+	var prev *Err
+	for tail.next != nil {
+		prev = tail
+		tail = tail.next
+	}
+
+	res := *tail
+	prev.next = nil
+
+	return &res
+}
+
+func (e Err) Error() string {
+	res := e.strln()
+	err := e
+	depth := 0
+	for err.next != nil {
 		for i := 0; i < depth; i++ {
-			res += "  "
+			res += "    "
 		}
+		depth++
 
-		res += "L "
-
-		res = fmt.Sprintf("%s%v\n", res, nested.Err)
+		res += "  L " + err.next.strln()
+		err = *err.next
 	}
-	return res
-}
 
-type Nested struct {
-	Event string
-	Err   error
-	Next  *Nested
+	return res
 }

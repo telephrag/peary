@@ -1,12 +1,14 @@
 package bot_errors
 
-const (
-	ErrFailedGiveRole     = "failed to give role"
-	ErrFailedTakeRole     = "failed to take role"
-	ErrFailedSendResponse = "failed to respond to player"
-	ErrFailedToRecover    = "failed to recover from error"
-	ErrSomewhereElse      = "error occured somewhere else and bot failed to recover"
-	ErrHandlerTimeout     = "command handler execution timeout"
+import "errors"
+
+var (
+	ErrFailedGiveRole     = errors.New("failed to give role")
+	ErrFailedTakeRole     = errors.New("failed to take role")
+	ErrFailedSendResponse = errors.New("failed to respond to player")
+	ErrFailedToRecover    = errors.New("failed to recover from error")
+	ErrSomewhereElse      = errors.New("error occured somewhere else and bot failed to recover")
+	ErrHandlerTimeout     = errors.New("command handler execution timeout")
 )
 
 const (
@@ -14,10 +16,16 @@ const (
 	CmdDeployDo       = "cmd_deploy_do"
 	CmdDeployRollback = "cmd_deploy_rollback"
 
-	CmdReturn        = "cmd_return"
-	CmdReturnDo      = "cmd_return_do"
-	CmdReturnRolback = "cmd_return_rollback"
+	CmdReturn         = "cmd_return"
+	CmdReturnDo       = "cmd_return_do"
+	CmdReturnRollback = "cmd_return_rollback"
 
-	DBRoleExpire = "db_role_expire"
-	NotifyUsr    = "notify_user"
+	DBChangeStream = "db_changestream"
+	DBInsert       = "db_insert"
+	DBDelete       = "db_delete"
+	DBRoleExpire   = "db_role_expire"
+
+	NotifyUsr = "usr_notify"
+
+	CtxCancel = "ctx_cancel"
 )

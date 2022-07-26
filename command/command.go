@@ -2,7 +2,6 @@ package command
 
 import (
 	"context"
-	"kubinka/bot_errors"
 	"kubinka/strg"
 
 	"github.com/bwmarrin/discordgo"
@@ -10,7 +9,7 @@ import (
 
 type Command interface {
 	/* Cancelled context means that state has been broken somewhere. Execution of some commands means to risk breaking state even more. In these commands `<-ctx.Done()` should be called before every Do() (see pkg `step`) */
-	Handle(ctx context.Context) *bot_errors.Nested
+	Handle(ctx context.Context) error
 
 	/* Returns unique event identifier that is used in errors to provide context
 	   of where error has occured. */

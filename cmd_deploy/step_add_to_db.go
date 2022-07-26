@@ -27,5 +27,5 @@ func (s *AddToDBStep) Do() error {
 }
 
 func (s *AddToDBStep) Rollback() error {
-	return nil // TODO 16
+	return s.DBConn.Delete(s.InteractionCreate.Member.User.ID)
 }

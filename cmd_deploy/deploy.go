@@ -2,7 +2,6 @@ package cmd_deploy
 
 import (
 	"context"
-	"errors"
 	"kubinka/bot_errors"
 	"kubinka/command"
 	"kubinka/config"
@@ -13,7 +12,7 @@ import (
 type DeployCmd struct {
 	steps     *step.Saga
 	eventName string
-	err       error
+	session   string
 }
 
 func Init(env *command.Env) command.Command {
@@ -24,15 +23,14 @@ func Init(env *command.Env) command.Command {
 			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
 		}),
 		eventName: bot_errors.CmdDeploy,
+		session:   env.DiscordInteractionCreate.Member.User.ID,
 	}
 }
 
-func (cmd *DeployCmd) Handle(ctx context.Context) *bot_errors.Nested {
+func (cmd *DeployCmd) Handle(ctx context.Context) error {
 
+	var doErr error
 	timeout := time.After(time.Second * config.CMD_HANDLER_TIMEOUT_SECONDS)
-	dErr := bot_errors.Nested{
-		Event: bot_errors.CmdDeployDo,
-	}
 do: // iterate all steps in command
 	for cmd.steps.Next() != nil {
 		s := cmd.steps.GetStep()
@@ -40,31 +38,29 @@ do: // iterate all steps in command
 		for {
 			select {
 			case <-timeout:
-				if dErr.Err == nil {
-					dErr.Err = errors.New(bot_errors.ErrHandlerTimeout)
+				if doErr == nil {
+					doErr = bot_errors.New(cmd.session, cmd.eventName, bot_errors.ErrHandlerTimeout)
 				}
 				break do
 			case <-ctx.Done():
 				// /deploy should not continue execution since its completion in context of failure...
-				if dErr.Err == nil { // can break state
-					dErr.Err = errors.New(bot_errors.ErrSomewhereElse)
+				if doErr == nil { // can break state
+					doErr = bot_errors.New(cmd.session, cmd.eventName, bot_errors.ErrSomewhereElse)
 				}
 			default:
-				dErr.Err = s.Do()
-				if dErr.Err == nil {
+				doErr = s.Do()
+				if doErr == nil {
 					break retry_do
 				}
 			}
 		}
 	}
-	if dErr.Err == nil {
+	if doErr == nil {
 		return nil
 	}
 
 	timeout = time.After(time.Second * config.CMD_HANDLER_TIMEOUT_SECONDS)
-	rErr := bot_errors.Nested{
-		Event: bot_errors.CmdDeployRollback,
-	}
+	var rbErr error
 rollback: // reverse iterate from point of failure
 	for cmd.steps.Prev() != nil {
 		s := cmd.steps.GetStep()
@@ -72,24 +68,24 @@ rollback: // reverse iterate from point of failure
 		for {
 			select {
 			case <-timeout:
-				if rErr.Err == nil {
-					rErr.Err = errors.New(bot_errors.ErrHandlerTimeout)
+				if rbErr == nil {
+					rbErr = bot_errors.New(cmd.session, cmd.eventName, bot_errors.ErrHandlerTimeout)
 				}
 				break rollback
 			default:
-				rErr.Err = s.Rollback()
-				if rErr.Err == nil {
+				rbErr = s.Rollback()
+				if rbErr == nil {
 					break retry_rb
 				}
 			}
 		}
 	}
 
-	if rErr.Err != nil {
-		dErr.Next = &rErr
+	if rbErr != nil {
+		doErr.(*bot_errors.Err).Nest(rbErr)
 	}
 
-	return &dErr
+	return doErr
 }
 
 func (cmd *DeployCmd) Event() string {

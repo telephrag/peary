@@ -2,8 +2,8 @@ package config
 
 const DB_NAME = "kubinka"
 const DB_PLAYERS_BUCKET_NAME = "players"
-const DB_CHANGESTREAM_SLEEP_SECONDS = db_changestream_sleep_seconds_debug // 60
-const db_changestream_sleep_seconds_debug = 3
+const DB_CHANGESTREAM_SLEEP_SECONDS = 60 // db_changestream_sleep_seconds_debug
+// const db_changestream_sleep_seconds_debug = 3
 
 const LOG_FILE_NAME = "log.log"
 

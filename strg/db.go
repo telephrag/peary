@@ -54,18 +54,30 @@ func (b *BoltConn) Insert(p *models.Player) error {
 
 		buf, err := json.Marshal(p)
 		if err != nil {
-			return fmt.Errorf("failed to marshal player %v: %w", p, err)
+			return bot_errors.New(
+				p.DiscordID,
+				bot_errors.DBInsert,
+				fmt.Errorf("failed to marshal player: %w", err),
+			)
 		}
 
 		err = bkt.Put([]byte(p.DiscordID), buf)
 		if err != nil {
-			return fmt.Errorf("failed to put player %v into bucket %s: %w", p, b.domain, err)
+			return bot_errors.New(
+				p.DiscordID,
+				bot_errors.DBInsert,
+				fmt.Errorf("bolt: failed to put player into bucket %s: %w", b.domain, err),
+			)
 		}
 
 		return nil
 	})
 	if err != nil {
-		return fmt.Errorf("transaction failed to add %v to db: %w", p, err)
+		return bot_errors.New(
+			p.DiscordID,
+			bot_errors.DBInsert,
+			fmt.Errorf("bolt: transaction failed to add player to db: %w", err),
+		)
 	}
 
 	return nil
@@ -76,7 +88,11 @@ func (b *BoltConn) Delete(key string) error {
 		bkt := tx.Bucket([]byte(b.domain))
 
 		if err := bkt.Delete([]byte(key)); err != nil {
-			return fmt.Errorf("failed to delete value at key %s: %w", key, err)
+			return bot_errors.New(
+				key,
+				bot_errors.DBDelete,
+				fmt.Errorf("failed to delete value at key %s: %w", key, err),
+			)
 		}
 
 		return nil
@@ -91,7 +107,11 @@ func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) 
 		case <-timeout:
 			tx, err := b.db.Begin(true)
 			if err != nil {
-				return fmt.Errorf("bolt: failed to initiate transaction: %w", err)
+				return bot_errors.New(
+					"bolt",
+					bot_errors.DBChangeStream,
+					fmt.Errorf("failed to initiate transaction"),
+				)
 			}
 
 			bkt := tx.Bucket([]byte(b.domain))
@@ -100,7 +120,11 @@ func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) 
 			for k, v := c.First(); k != nil; k, v = c.Next() {
 				p := models.Player{}
 				if err := json.Unmarshal(v, &p); err != nil {
-					return fmt.Errorf("bolt: failed to unmarshal record into models.Player: %w", err)
+					return bot_errors.New(
+						"bolt",
+						bot_errors.DBChangeStream,
+						fmt.Errorf("failed to initiate transaction: %w", err),
+					)
 				}
 
 				if p.Expire.Before(now) {
@@ -108,15 +132,19 @@ func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) 
 					which may become the case in the future. */
 					err := ds.GuildMemberRoleRemove(config.BOT_GUILD_ID, p.DiscordID, config.BOT_ROLE_ID)
 					if err != nil {
-						return fmt.Errorf(
-							"discord: failed to remove role from player %s: %w",
+						return bot_errors.New(
 							p.DiscordID,
-							err,
+							bot_errors.DBChangeStream,
+							bot_errors.ErrFailedTakeRole,
 						)
 					}
 					err = c.Delete()
 					if err != nil {
-						return fmt.Errorf("bolt: failed to delete player record at cursor: %w", err)
+						return bot_errors.New(
+							"bolt",
+							bot_errors.DBChangeStream,
+							fmt.Errorf("failed to delete player record at cursor: %w", err),
+						)
 					}
 
 					log.Printf("%s deployment time expired, removed from db\n", p.DiscordID)
@@ -124,12 +152,16 @@ func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) 
 			}
 			if err := tx.Commit(); err != nil {
 				tx.Rollback()
-				return fmt.Errorf("bolt: failed to commit transaction: %w", err)
+				return bot_errors.New(
+					"bolt",
+					bot_errors.DBChangeStream,
+					fmt.Errorf("failed to commit transaction: %w", err),
+				)
 			}
 			timeout = time.After(time.Second * config.DB_CHANGESTREAM_SLEEP_SECONDS)
 
 		case <-ctx.Done():
-			return fmt.Errorf(bot_errors.ErrSomewhereElse)
+			return bot_errors.New("", bot_errors.CtxCancel, ctx.Err())
 		}
 	}
 }

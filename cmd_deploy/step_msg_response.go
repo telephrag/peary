@@ -1,7 +1,6 @@
 package cmd_deploy
 
 import (
-	"errors"
 	"fmt"
 	"kubinka/bot_errors"
 
@@ -33,12 +32,20 @@ func (s *MsgResponseStep) Do() error {
 			},
 		})
 	if err != nil {
-		return fmt.Errorf(bot_errors.ErrFailedSendResponse+": %w", err)
+		return bot_errors.New(
+			s.InteractionCreate.Member.User.ID,
+			bot_errors.CmdDeployDo,
+			fmt.Errorf("%s: %w", bot_errors.ErrFailedSendResponse, err),
+		)
 	}
 
 	return nil
 }
 
 func (s *MsgResponseStep) Rollback() error {
-	return errors.New(bot_errors.ErrFailedToRecover)
+	return bot_errors.New(
+		s.InteractionCreate.Member.User.ID,
+		bot_errors.CmdDeployRollback,
+		bot_errors.ErrFailedToRecover,
+	)
 }
