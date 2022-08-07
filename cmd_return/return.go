@@ -2,9 +2,9 @@ package cmd_return
 
 import (
 	"context"
-	"kubinka/bot_errors"
 	"kubinka/command"
 	"kubinka/config"
+	"kubinka/errlist"
 	"kubinka/step"
 	"time"
 )
@@ -22,7 +22,7 @@ func Init(env *command.Env) command.Command {
 			NewDeleteFromDBStep(env.DBConn, env.DiscordInteractionCreate),
 			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
 		}),
-		eventName: bot_errors.CmdReturn,
+		eventName: errlist.CmdReturn,
 		session:   env.DiscordInteractionCreate.Member.User.ID,
 	}
 }
@@ -41,7 +41,9 @@ do: // iterate all steps of command
 			select {
 			case <-timeout:
 				if doErr == nil {
-					doErr = bot_errors.New(cmd.session, cmd.eventName, bot_errors.ErrHandlerTimeout)
+					doErr = errlist.New(errlist.ErrHandlerTimeout).
+						Set("session", cmd.session).
+						Set("event", cmd.eventName)
 				}
 				break do
 			default:
@@ -66,7 +68,9 @@ rollback: // reverse iterate from point of failure
 			select {
 			case <-timeout:
 				if rbErr == nil {
-					rbErr = bot_errors.New(cmd.session, cmd.eventName, bot_errors.ErrHandlerTimeout)
+					rbErr = errlist.New(errlist.ErrHandlerTimeout).
+						Set("session", cmd.session).
+						Set("event", cmd.eventName)
 				}
 				break rollback
 			default:
@@ -79,7 +83,7 @@ rollback: // reverse iterate from point of failure
 	}
 
 	if rbErr != nil {
-		doErr.(*bot_errors.Err).Nest(rbErr)
+		doErr.(*errlist.ErrNode).Wrap(rbErr)
 	}
 
 	return doErr

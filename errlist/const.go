@@ -1,4 +1,4 @@
-package bot_errors
+package errlist
 
 import "errors"
 
@@ -20,10 +20,11 @@ const (
 	CmdReturnDo       = "cmd_return_do"
 	CmdReturnRollback = "cmd_return_rollback"
 
-	DBChangeStream = "db_changestream"
-	DBInsert       = "db_insert"
-	DBDelete       = "db_delete"
-	DBRoleExpire   = "db_role_expire"
+	DBChangeStream       = "db_changestream"
+	DBChangeStreamExpire = "db_changestream_expire"
+	DBInsert             = "db_insert"
+	DBDelete             = "db_delete"
+	DBRoleExpire         = "db_role_expire"
 
 	NotifyUsr = "usr_notify"
 

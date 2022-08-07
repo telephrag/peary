@@ -2,8 +2,8 @@ package cmd_deploy
 
 import (
 	"fmt"
-	"kubinka/bot_errors"
 	"kubinka/config"
+	"kubinka/errlist"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -28,11 +28,9 @@ func (s *GiveRoleStep) Do() error {
 	)
 	if err != nil {
 		// TODO: Check if actual error is outputted not just bytes
-		return bot_errors.New(
-			s.InteractionCreate.Member.User.ID,
-			bot_errors.CmdDeployDo,
-			fmt.Errorf("%s: %w", bot_errors.ErrFailedGiveRole, err),
-		)
+		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedGiveRole, err)).
+			Set("session", s.InteractionCreate.Member.User.ID).
+			Set("event", errlist.CmdDeployDo)
 	}
 
 	return nil
@@ -45,11 +43,9 @@ func (s *GiveRoleStep) Rollback() error {
 		config.BOT_ROLE_ID,
 	)
 	if err != nil {
-		return bot_errors.New(
-			s.InteractionCreate.Member.User.ID,
-			bot_errors.CmdDeployRollback,
-			fmt.Errorf("%s: %w", bot_errors.ErrFailedTakeRole, err),
-		)
+		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedTakeRole, err)).
+			Set("session", s.InteractionCreate.Member.User.ID).
+			Set("event", errlist.CmdDeployRollback)
 	}
 
 	return nil

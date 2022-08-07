@@ -2,7 +2,7 @@ package cmd_return
 
 import (
 	"fmt"
-	"kubinka/bot_errors"
+	"kubinka/errlist"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -29,20 +29,16 @@ func (s *MsgResponseStep) Do() error {
 			},
 		})
 	if err != nil {
-		return bot_errors.New(
-			s.InteractionCreate.Member.User.ID,
-			bot_errors.CmdReturnDo,
-			fmt.Errorf("%s: %w", bot_errors.ErrFailedSendResponse, err),
-		)
+		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedSendResponse, err)).
+			Set("session", s.InteractionCreate.Member.User.ID).
+			Set("event", errlist.CmdReturnDo)
 	}
 
 	return nil
 }
 
 func (s *MsgResponseStep) Rollback() error {
-	return bot_errors.New(
-		s.InteractionCreate.Member.User.ID,
-		bot_errors.CmdReturnRollback,
-		bot_errors.ErrFailedToRecover,
-	)
+	return errlist.New(errlist.ErrFailedToRecover).
+		Set("session", s.InteractionCreate.Member.User.ID).
+		Set("event", errlist.CmdReturnRollback)
 }

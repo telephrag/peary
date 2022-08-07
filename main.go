@@ -3,22 +3,30 @@ package main
 import (
 	"context"
 	"kubinka/config"
+	"kubinka/errlist"
 	"kubinka/service"
 	"kubinka/strg"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 func getLogFile(fileName string) *os.File {
-	// setting up logging, for some reason logging wont work properly
-	// if it was setup inside init()
 	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
-		log.Fatal("Failed to open file for logging.\n\n\n")
+		_, err := os.Create(fileName)
+		if err != nil {
+			log.Fatalln("Failed to create or open file for logging.")
+		}
+		f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+		if err != nil {
+			log.Fatalln("Failed to open just created file.")
+		}
+		return f
 	}
 	return f
 }
@@ -78,26 +86,21 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 func main() {
 	logFile := getLogFile(config.LOG_FILE_NAME)
 	defer logFile.Close()
+	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
 	log.SetOutput(logFile)
-	log.Print("SESSION STARTUP\n")
-	defer log.Print("SESSION SHUTDOWN\n\n\n")
+	log.Print(errlist.New(nil).Set("event", "SESSION STARTUP"))
 
 	db, err := strg.Connect(config.DB_NAME, config.DB_PLAYERS_BUCKET_NAME)
 	if err != nil {
 		log.Panicf("failed to connect to db: %v", err)
 	}
-	defer db.Close() // works fine, wtf ???
-	// defer func() {
-	// 	if err := db.Close(); err != nil { // will close normally in debug mode
-	// 		log.Panicf("error closing db conn: %v", err) // will stuck otherwise
-	// 	}
-	// }()
+	defer db.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	ds, masterHandler := newDiscordSession(ctx, cancel, config.BOT_TOKEN, db)
 	defer masterHandler.Cancel()
-	// defer masterHandler.HaltUntilAllDone()
+	defer masterHandler.HaltUntilAllDone()
 	defer ds.Close()
 
 	createCommands(ds, config.BOT_APP_ID, config.BOT_GUILD_ID)
@@ -105,26 +108,24 @@ func main() {
 
 	go func() {
 		err := db.WatchExpirations(ctx, ds)
-		if err != nil {
-			log.Print(err)
-			masterHandler.Cancel()
-		}
+		log.Print(err)
+		masterHandler.Cancel()
 	}()
 
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
+	shutdownLogRec := errlist.New(nil).Set("event", "SESSION SHUTDOWN")
 	for {
 		select {
 		case <-interrupt:
-			log.Println("Execution stopped by user")
+			log.Print(shutdownLogRec.Set("cause", "execution stopped by user"))
 			masterHandler.Cancel()
-			return // why return doesn't work here?
-			// or does it? cause I've seen break work only in debug mode
-		case <-masterHandler.Ctx.Done():
-			log.Println("ctx cancelled")
 			return
-			// default:
-			// 	time.Sleep(time.Millisecond * 100)
+		case <-masterHandler.Ctx.Done():
+			log.Print(shutdownLogRec.Set("cause", ctx.Err().Error()))
+			return
+		default:
+			time.Sleep(time.Millisecond * 100)
 		}
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"kubinka/bot_errors"
 	"kubinka/config"
+	"kubinka/errlist"
 	"kubinka/models"
 	"log"
 	"time"
@@ -54,30 +54,25 @@ func (b *BoltConn) Insert(p *models.Player) error {
 
 		buf, err := json.Marshal(p)
 		if err != nil {
-			return bot_errors.New(
-				p.DiscordID,
-				bot_errors.DBInsert,
-				fmt.Errorf("failed to marshal player: %w", err),
-			)
+			return errlist.New(fmt.Errorf("failed to marshal player: %w", err)).
+				Set("session", p.DiscordID).
+				Set("event", errlist.DBInsert)
 		}
 
 		err = bkt.Put([]byte(p.DiscordID), buf)
 		if err != nil {
-			return bot_errors.New(
-				p.DiscordID,
-				bot_errors.DBInsert,
-				fmt.Errorf("bolt: failed to put player into bucket %s: %w", b.domain, err),
-			)
+			return errlist.New(fmt.Errorf("bolt: failed to put player into bucket %s: %w", b.domain, err)).
+				Set("session", p.DiscordID).
+				Set("event", errlist.DBInsert)
 		}
 
+		log.Print(errlist.New(nil).Set("session", "bolt"))
 		return nil
 	})
 	if err != nil {
-		return bot_errors.New(
-			p.DiscordID,
-			bot_errors.DBInsert,
-			fmt.Errorf("bolt: transaction failed to add player to db: %w", err),
-		)
+		return errlist.New(fmt.Errorf("bolt: transaction failed to add player to db: %w", err)).
+			Set("session", p.DiscordID).
+			Set("event", errlist.DBInsert)
 	}
 
 	return nil
@@ -88,11 +83,9 @@ func (b *BoltConn) Delete(key string) error {
 		bkt := tx.Bucket([]byte(b.domain))
 
 		if err := bkt.Delete([]byte(key)); err != nil {
-			return bot_errors.New(
-				key,
-				bot_errors.DBDelete,
-				fmt.Errorf("failed to delete value at key %s: %w", key, err),
-			)
+			return errlist.New(fmt.Errorf("failed to delete value at key: %w", err)).
+				Set("session", key).
+				Set("event", errlist.DBDelete)
 		}
 
 		return nil
@@ -107,11 +100,8 @@ func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) 
 		case <-timeout:
 			tx, err := b.db.Begin(true)
 			if err != nil {
-				return bot_errors.New(
-					"bolt",
-					bot_errors.DBChangeStream,
-					fmt.Errorf("failed to initiate transaction"),
-				)
+				return errlist.New(fmt.Errorf("failed to initiate transaction")).
+					Set("event", errlist.DBChangeStream)
 			}
 
 			bkt := tx.Bucket([]byte(b.domain))
@@ -120,11 +110,8 @@ func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) 
 			for k, v := c.First(); k != nil; k, v = c.Next() {
 				p := models.Player{}
 				if err := json.Unmarshal(v, &p); err != nil {
-					return bot_errors.New(
-						"bolt",
-						bot_errors.DBChangeStream,
-						fmt.Errorf("failed to initiate transaction: %w", err),
-					)
+					return errlist.New(err).
+						Set("event", errlist.DBChangeStream)
 				}
 
 				if p.Expire.Before(now) {
@@ -132,36 +119,31 @@ func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) 
 					which may become the case in the future. */
 					err := ds.GuildMemberRoleRemove(config.BOT_GUILD_ID, p.DiscordID, config.BOT_ROLE_ID)
 					if err != nil {
-						return bot_errors.New(
-							p.DiscordID,
-							bot_errors.DBChangeStream,
-							bot_errors.ErrFailedTakeRole,
-						)
+						return errlist.New(errlist.ErrFailedTakeRole).
+							Set("session", p.DiscordID).
+							Set("event", errlist.DBChangeStreamExpire)
 					}
 					err = c.Delete()
 					if err != nil {
-						return bot_errors.New(
-							"bolt",
-							bot_errors.DBChangeStream,
-							fmt.Errorf("failed to delete player record at cursor: %w", err),
-						)
+						return errlist.New(fmt.Errorf("failed to delete player record at cursor: %w", err)).
+							Set("event", errlist.DBChangeStreamExpire)
 					}
 
-					log.Printf("%s deployment time expired, removed from db\n", p.DiscordID)
+					log.Print(errlist.New(nil).
+						Set("session", p.DiscordID).
+						Set("event", errlist.DBChangeStreamExpire),
+					)
 				}
 			}
 			if err := tx.Commit(); err != nil {
 				tx.Rollback()
-				return bot_errors.New(
-					"bolt",
-					bot_errors.DBChangeStream,
-					fmt.Errorf("failed to commit transaction: %w", err),
-				)
+				return errlist.New(fmt.Errorf("failed to commit transaction: %w", err)).
+					Set("event", errlist.DBChangeStream)
 			}
 			timeout = time.After(time.Second * config.DB_CHANGESTREAM_SLEEP_SECONDS)
 
 		case <-ctx.Done():
-			return bot_errors.New("", bot_errors.CtxCancel, ctx.Err())
+			return errlist.New(ctx.Err())
 		}
 	}
 }

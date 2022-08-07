@@ -1,4 +1,4 @@
-package bot_errors
+package errlist
 
 import (
 	"fmt"
@@ -14,7 +14,7 @@ func NotifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, errMsg str
 		},
 	})
 	if err != nil {
-		return New(i.Member.User.ID, NotifyUsr, fmt.Errorf("%s: %w", ErrFailedSendResponse, err))
+		return New(fmt.Errorf("%s: %w", ErrFailedSendResponse, err)).Set("session", i.Member.User.ID).Set("event", NotifyUsr)
 	}
 
 	return nil

@@ -1,7 +1,7 @@
 package cmd_return
 
 import (
-	"kubinka/bot_errors"
+	"kubinka/errlist"
 	"kubinka/strg"
 
 	"github.com/bwmarrin/discordgo"
@@ -24,9 +24,7 @@ func (s *DeleteFromDBStep) Do() error {
 }
 
 func (s *DeleteFromDBStep) Rollback() error {
-	return bot_errors.New(
-		s.InteractionCreate.Member.User.ID,
-		bot_errors.CmdReturnRollback,
-		bot_errors.ErrFailedToRecover,
-	)
+	return errlist.New(errlist.ErrFailedToRecover).
+		Set("session", s.InteractionCreate.Member.User.ID).
+		Set("event", errlist.CmdReturnRollback)
 }

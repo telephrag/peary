@@ -2,8 +2,8 @@ package service
 
 import (
 	"context"
-	"kubinka/bot_errors"
 	"kubinka/command"
+	"kubinka/errlist"
 	"kubinka/strg"
 	"log"
 	"sync/atomic"
@@ -47,13 +47,10 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	select {
 	case <-mh.Ctx.Done(): // cancellation of context means breakage of state somewhere...
-		mhErr := bot_errors.New(
-			i.Member.User.ID,
-			cmd.Event(),
-			bot_errors.ErrSomewhereElse,
-		).Nest(
-			*bot_errors.NotifyUser(s, i, bot_errors.ErrSomewhereElse.Error()).(*bot_errors.Err),
-		)
+		mhErr := errlist.New(errlist.ErrSomewhereElse).
+			Set("session", i.Member.User.ID).
+			Set("event", cmd.Event()).
+			Wrap(errlist.NotifyUser(s, i, errlist.ErrSomewhereElse.Error()))
 		log.Print(mhErr)
 		return // ... so, do not handle any more commands to not risk breaking state even more
 	default:
@@ -64,14 +61,16 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	handlerErr := cmd.Handle(mh.Ctx)
 	if handlerErr != nil {
-		err := bot_errors.NotifyUser(s, i, handlerErr.Error())
+		err := errlist.NotifyUser(s, i, handlerErr.Error())
 		if err != nil {
-			handlerErr.(*bot_errors.Err).Nest(err)
+			handlerErr.(*errlist.ErrNode).Wrap(err)
 			mh.Cancel()
 		}
 		log.Print(handlerErr)
+		return
 	}
 
+	log.Print(errlist.New(nil).Set("session", i.Member.User.ID).Set("event", cmd.Event()))
 }
 
 func (mh *MasterHandler) HaltUntilAllDone() {

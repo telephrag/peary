@@ -2,8 +2,8 @@ package cmd_return
 
 import (
 	"fmt"
-	"kubinka/bot_errors"
 	"kubinka/config"
+	"kubinka/errlist"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -27,11 +27,9 @@ func (s *RemoveRoleStep) Do() error {
 		config.BOT_ROLE_ID,
 	)
 	if err != nil {
-		return bot_errors.New(
-			s.InteractionCreate.Member.User.ID,
-			bot_errors.CmdReturnDo,
-			fmt.Errorf("%s: %w", bot_errors.ErrFailedTakeRole, err),
-		)
+		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedTakeRole, err)).
+			Set("session", s.InteractionCreate.Member.User.ID).
+			Set("event", errlist.CmdReturnDo)
 	}
 
 	return nil
@@ -40,9 +38,7 @@ func (s *RemoveRoleStep) Do() error {
 func (s *RemoveRoleStep) Rollback() error {
 	// if we removed role already, better leave it like this even if user gets no response
 	// which is better than receiving pings you didn't sign for
-	return bot_errors.New(
-		s.InteractionCreate.Member.User.ID,
-		bot_errors.CmdReturnRollback,
-		bot_errors.ErrFailedToRecover,
-	)
+	return errlist.New(errlist.ErrFailedToRecover).
+		Set("session", s.InteractionCreate.Member.User.ID).
+		Set("event", errlist.CmdReturnRollback)
 }
