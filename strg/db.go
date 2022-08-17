@@ -19,11 +19,6 @@ type BoltConn struct {
 	domain string
 }
 
-func (b *BoltConn) init(db *bbolt.DB, domain string) {
-	b.db = db
-	b.domain = domain
-}
-
 func Connect(dbName, domain string) (*BoltConn, error) {
 	db, err := bbolt.Open(dbName+".db", 0666, nil)
 	if err != nil {
@@ -49,7 +44,7 @@ func (b *BoltConn) Close() error {
 }
 
 func (b *BoltConn) Insert(p *models.Player) error {
-	err := b.db.Update(func(tx *bbolt.Tx) error {
+	return b.db.Update(func(tx *bbolt.Tx) error {
 		bkt := tx.Bucket([]byte(b.domain))
 
 		buf, err := json.Marshal(p)
@@ -66,16 +61,12 @@ func (b *BoltConn) Insert(p *models.Player) error {
 				Set("event", errlist.DBInsert)
 		}
 
-		log.Print(errlist.New(nil).Set("session", "bolt"))
+		log.Print(errlist.New(nil).
+			Set("session", p.DiscordID).
+			Set("event", errlist.DBInsert),
+		)
 		return nil
 	})
-	if err != nil {
-		return errlist.New(fmt.Errorf("bolt: transaction failed to add player to db: %w", err)).
-			Set("session", p.DiscordID).
-			Set("event", errlist.DBInsert)
-	}
-
-	return nil
 }
 
 func (b *BoltConn) Delete(key string) error {
@@ -87,7 +78,6 @@ func (b *BoltConn) Delete(key string) error {
 				Set("session", key).
 				Set("event", errlist.DBDelete)
 		}
-
 		return nil
 	})
 }

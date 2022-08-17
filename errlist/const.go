@@ -9,6 +9,7 @@ var (
 	ErrFailedToRecover    = errors.New("failed to recover from error")
 	ErrSomewhereElse      = errors.New("error occured somewhere else and bot failed to recover")
 	ErrHandlerTimeout     = errors.New("command handler execution timeout")
+	ErrEmpty              = errors.New("")
 )
 
 const (
