@@ -43,6 +43,24 @@ func (b *BoltConn) Close() error {
 	return b.db.Close()
 }
 
+func (b *BoltConn) GetPlayerIDs() []string {
+	var ids []string
+	b.db.View(func(tx *bbolt.Tx) error {
+		bkt := tx.Bucket([]byte(b.domain))
+		ids = make([]string, bkt.Stats().KeyN)
+
+		c := bkt.Cursor()
+		i := 0
+		for k, _ := c.First(); k != nil; k, _ = c.Next() {
+			ids[i] = string(k)
+			i++
+		}
+		return nil
+	})
+
+	return ids
+}
+
 func (b *BoltConn) Insert(p *models.Player) error {
 	return b.db.Update(func(tx *bbolt.Tx) error {
 		bkt := tx.Bucket([]byte(b.domain))
@@ -82,56 +100,63 @@ func (b *BoltConn) Delete(key string) error {
 	})
 }
 
+func (b *BoltConn) RemoveExpired(ds *discordgo.Session) error {
+	tx, err := b.db.Begin(true)
+	if err != nil {
+		return errlist.New(fmt.Errorf("failed to initiate transaction")).
+			Set("event", errlist.DBChangeStream)
+	}
+
+	bkt := tx.Bucket([]byte(b.domain))
+	c := bkt.Cursor()
+	now := time.Now()
+	for k, v := c.First(); k != nil; k, v = c.Next() {
+		p := models.Player{}
+		if err := json.Unmarshal(v, &p); err != nil {
+			return errlist.New(err).
+				Set("event", errlist.DBChangeStream)
+		}
+
+		if p.Expire.Before(now) {
+			/* ErrIncompatibleValue may occur if you have nested bucket
+			which may become the case in the future. */
+			err := ds.GuildMemberRoleRemove(config.BOT_GUILD_ID, p.DiscordID, config.BOT_ROLE_ID)
+			if err != nil {
+				return errlist.New(errlist.ErrFailedTakeRole).
+					Set("session", p.DiscordID).
+					Set("event", errlist.DBChangeStreamExpire)
+			}
+			err = c.Delete()
+			if err != nil {
+				return errlist.New(fmt.Errorf("failed to delete player record at cursor: %w", err)).
+					Set("event", errlist.DBChangeStreamExpire)
+			}
+
+			log.Print(errlist.New(nil).
+				Set("session", p.DiscordID).
+				Set("event", errlist.DBChangeStreamExpire),
+			)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		return errlist.New(fmt.Errorf("failed to commit transaction: %w", err)).
+			Set("event", errlist.DBChangeStream)
+	}
+
+	return nil
+}
+
 func (b *BoltConn) WatchExpirations(ctx context.Context, ds *discordgo.Session) error {
-	timeout := time.After(time.Second * config.DB_CHANGESTREAM_SLEEP_SECONDS)
+	timeout := time.After(time.Second * 0) // expired records are deleted immediately on startup
 
 	for {
 		select {
 		case <-timeout:
-			tx, err := b.db.Begin(true)
-			if err != nil {
-				return errlist.New(fmt.Errorf("failed to initiate transaction")).
-					Set("event", errlist.DBChangeStream)
-			}
-
-			bkt := tx.Bucket([]byte(b.domain))
-			c := bkt.Cursor()
-			now := time.Now()
-			for k, v := c.First(); k != nil; k, v = c.Next() {
-				p := models.Player{}
-				if err := json.Unmarshal(v, &p); err != nil {
-					return errlist.New(err).
-						Set("event", errlist.DBChangeStream)
-				}
-
-				if p.Expire.Before(now) {
-					/* ErrIncompatibleValue may occur if you have nested bucket
-					which may become the case in the future. */
-					err := ds.GuildMemberRoleRemove(config.BOT_GUILD_ID, p.DiscordID, config.BOT_ROLE_ID)
-					if err != nil {
-						return errlist.New(errlist.ErrFailedTakeRole).
-							Set("session", p.DiscordID).
-							Set("event", errlist.DBChangeStreamExpire)
-					}
-					err = c.Delete()
-					if err != nil {
-						return errlist.New(fmt.Errorf("failed to delete player record at cursor: %w", err)).
-							Set("event", errlist.DBChangeStreamExpire)
-					}
-
-					log.Print(errlist.New(nil).
-						Set("session", p.DiscordID).
-						Set("event", errlist.DBChangeStreamExpire),
-					)
-				}
-			}
-			if err := tx.Commit(); err != nil {
-				tx.Rollback()
-				return errlist.New(fmt.Errorf("failed to commit transaction: %w", err)).
-					Set("event", errlist.DBChangeStream)
+			if err := b.RemoveExpired(ds); err != nil {
+				return err
 			}
 			timeout = time.After(time.Second * config.DB_CHANGESTREAM_SLEEP_SECONDS)
-
 		case <-ctx.Done():
 			return errlist.New(ctx.Err())
 		}

@@ -28,7 +28,7 @@ func (s *MsgResponseStep) Do() error {
 		&discordgo.InteractionResponse{
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
-				Content: fmt.Sprintf("You have been deployed till %02d:%02d", d.Hour(), d.Minute()),
+				Content: fmt.Sprintf("You have been deployed till %02d:%02d UTC", d.Hour(), d.Minute()),
 			},
 		})
 	if err != nil {

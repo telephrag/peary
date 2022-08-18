@@ -30,4 +30,7 @@ const (
 	NotifyUsr = "usr_notify"
 
 	CtxCancel = "ctx_cancel"
+
+	StartupRoleReissue = "startup_role_reissue"
+	ShutdownRoleRemove = "shutdown_role_remove"
 )

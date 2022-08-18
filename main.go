@@ -53,11 +53,11 @@ func newDiscordSession(
 	return discord, masterHandler
 }
 
-func deleteCommands(ds *discordgo.Session) { // make stuff passed in as params
+func deleteCommands(ds *discordgo.Session, guildId string) {
 	for _, cmd := range service.CmdDef {
 		err := ds.ApplicationCommandDelete(
 			ds.State.User.ID,
-			config.BOT_GUILD_ID,
+			guildId,
 			cmd.ID,
 		)
 		if err != nil {
@@ -76,9 +76,31 @@ func createCommands(ds *discordgo.Session, appId string, guildId string) {
 		)
 		if err != nil {
 			if i > 0 {
-				deleteCommands(ds)
+				deleteCommands(ds, config.BOT_GUILD_ID)
 			}
 			log.Fatalf("Failed to create command %s:\n %s\n\n\n", cmd.Name, err)
+		}
+	}
+}
+
+func reissueRoles(ds *discordgo.Session, db *strg.BoltConn, guildId, roleId string) error {
+	idsWithRoles := db.GetPlayerIDs()
+	for _, id := range idsWithRoles {
+		err := ds.GuildMemberRoleAdd(guildId, id, roleId)
+		if err != nil {
+			return errlist.New(err).Set("event", errlist.StartupRoleReissue).Set("session", id)
+		}
+	}
+
+	return nil
+}
+
+func takeRoles(ds *discordgo.Session, db *strg.BoltConn, guildId, roleId string) {
+	idsWithRoles := db.GetPlayerIDs()
+	for _, id := range idsWithRoles {
+		err := ds.GuildMemberRoleRemove(guildId, id, roleId)
+		if err != nil {
+			log.Print(errlist.New(err).Set("event", errlist.ShutdownRoleRemove).Set("session", id))
 		}
 	}
 }
@@ -104,8 +126,11 @@ func main() {
 	defer ds.Close()
 
 	createCommands(ds, config.BOT_APP_ID, config.BOT_GUILD_ID)
-	defer deleteCommands(ds) // Removing commands on bot shutdown
+	defer deleteCommands(ds, config.BOT_GUILD_ID) // Removing commands on bot shutdown
 
+	db.RemoveExpired(ds)
+	reissueRoles(ds, db, config.BOT_GUILD_ID, config.BOT_ROLE_ID)
+	// roles are removed on shutdown at the end of main, see bellow
 	go func() {
 		err := db.WatchExpirations(ctx, ds)
 		log.Print(err)
@@ -115,17 +140,22 @@ func main() {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, syscall.SIGTERM, syscall.SIGINT)
 	shutdownLogRec := errlist.New(nil).Set("event", "SESSION SHUTDOWN")
+halt:
 	for {
 		select {
 		case <-interrupt:
 			log.Print(shutdownLogRec.Set("cause", "execution stopped by user"))
 			masterHandler.Cancel()
-			return
+			log.Println(db.GetPlayerIDs())
+			break halt
 		case <-masterHandler.Ctx.Done():
 			log.Print(shutdownLogRec.Set("cause", ctx.Err().Error()))
-			return
+			break halt
 		default:
 			time.Sleep(time.Millisecond * 100)
 		}
 	}
+
+	// can't defer, see why at NOTES 04
+	takeRoles(ds, db, config.BOT_GUILD_ID, config.BOT_ROLE_ID)
 }
