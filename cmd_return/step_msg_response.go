@@ -26,6 +26,7 @@ func (s *MsgResponseStep) Do() error {
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "You have returned from deployment.",
+				Flags:   uint64(1 << 6),
 			},
 		})
 	if err != nil {

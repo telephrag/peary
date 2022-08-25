@@ -110,16 +110,6 @@ func reissueRoles(ds *discordgo.Session, db *strg.BoltConn, guildId, roleId stri
 	return nil
 }
 
-func takeRoles(ds *discordgo.Session, db *strg.BoltConn, guildId, roleId string) {
-	idsWithRoles := db.GetPlayerIDs()
-	for _, id := range idsWithRoles {
-		err := ds.GuildMemberRoleRemove(guildId, id, roleId)
-		if err != nil {
-			log.Print(errlist.New(err).Set("event", errlist.ShutdownRoleRemove).Set("session", id))
-		}
-	}
-}
-
 func main() {
 	logFile := getLogFile(config.LOG_FILE_NAME)
 	defer logFile.Close()
@@ -158,8 +148,6 @@ func main() {
 		}
 	}()
 
-	// roles are removed on shutdown at the end of main, see bellow
-	db.RemoveExpired(ds)
 	reissueRoles(ds, db, config.BOT_GUILD_ID, config.BOT_ROLE_ID)
 
 	go func() {
@@ -184,7 +172,4 @@ halt:
 			time.Sleep(time.Millisecond * 100)
 		}
 	}
-
-	// can't defer, see why at NOTES 04
-	takeRoles(ds, db, config.BOT_GUILD_ID, config.BOT_ROLE_ID)
 }
