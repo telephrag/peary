@@ -2,10 +2,10 @@ package cmd_deploy
 
 import (
 	"context"
-	"kubinka/command"
-	"kubinka/config"
-	"kubinka/errlist"
-	"kubinka/step"
+	"peary/command"
+	"peary/config"
+	"peary/errlist"
+	"peary/step"
 	"time"
 )
 

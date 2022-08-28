@@ -1,8 +1,8 @@
 package cmd_deploy
 
 import (
-	"kubinka/models"
-	"kubinka/strg"
+	"peary/models"
+	"peary/strg"
 
 	"github.com/bwmarrin/discordgo"
 )

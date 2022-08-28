@@ -1,6 +1,6 @@
 package config
 
-const DB_NAME = "kubinka"
+const DB_NAME = "peary"
 const DB_PLAYERS_BUCKET_NAME = "players"
 const DB_CHANGESTREAM_SLEEP_SECONDS = 60
 

@@ -2,7 +2,7 @@ package cmd_deploy
 
 import (
 	"fmt"
-	"kubinka/errlist"
+	"peary/errlist"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -29,7 +29,7 @@ func (s *MsgResponseStep) Do() error {
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: fmt.Sprintf("You have been deployed till %02d:%02d UTC", d.Hour(), d.Minute()),
-				Flags:   uint64(1 << 6),
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 	if err != nil {

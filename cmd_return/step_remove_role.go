@@ -2,8 +2,8 @@ package cmd_return
 
 import (
 	"fmt"
-	"kubinka/config"
-	"kubinka/errlist"
+	"peary/config"
+	"peary/errlist"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -22,7 +22,7 @@ func NewRemoveRoleStep(s *discordgo.Session, i *discordgo.InteractionCreate) *Re
 
 func (s *RemoveRoleStep) Do() error {
 	err := s.DiscordSession.GuildMemberRoleRemove(
-		config.BOT_GUILD_ID,
+		s.InteractionCreate.GuildID,
 		s.InteractionCreate.Member.User.ID,
 		config.BOT_ROLE_ID,
 	)

@@ -2,7 +2,7 @@ package cmd_return
 
 import (
 	"fmt"
-	"kubinka/errlist"
+	"peary/errlist"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -26,7 +26,7 @@ func (s *MsgResponseStep) Do() error {
 			Type: discordgo.InteractionResponseChannelMessageWithSource,
 			Data: &discordgo.InteractionResponseData{
 				Content: "You have returned from deployment.",
-				Flags:   uint64(1 << 6),
+				Flags:   discordgo.MessageFlagsEphemeral,
 			},
 		})
 	if err != nil {

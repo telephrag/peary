@@ -1,9 +1,9 @@
-module kubinka
+module peary
 
 go 1.18
 
 require (
-	github.com/bwmarrin/discordgo v0.25.0
+	github.com/bwmarrin/discordgo v0.26.0
 	go.etcd.io/bbolt v1.3.6
 )
 

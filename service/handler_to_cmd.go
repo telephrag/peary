@@ -1,9 +1,9 @@
 package service
 
 import (
-	"kubinka/cmd_deploy"
-	"kubinka/cmd_return"
-	"kubinka/command"
+	"peary/cmd_deploy"
+	"peary/cmd_return"
+	"peary/command"
 
 	"github.com/bwmarrin/discordgo"
 )

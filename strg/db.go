@@ -4,10 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"kubinka/config"
-	"kubinka/errlist"
-	"kubinka/models"
 	"log"
+	"peary/config"
+	"peary/errlist"
+	"peary/models"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
@@ -120,7 +120,10 @@ func (b *BoltConn) RemoveExpired(ds *discordgo.Session) error {
 		if p.Expire.Before(now) {
 			/* ErrIncompatibleValue may occur if you have nested bucket
 			which may become the case in the future. */
-			err := ds.GuildMemberRoleRemove(config.BOT_GUILD_ID, p.DiscordID, config.BOT_ROLE_ID)
+			err := ds.GuildMemberRoleRemove(
+				ds.State.Ready.Guilds[0].ID,
+				p.DiscordID,
+				config.BOT_ROLE_ID)
 			if err != nil {
 				return errlist.New(errlist.ErrFailedTakeRole).
 					Set("session", p.DiscordID).

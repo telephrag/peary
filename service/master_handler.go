@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"kubinka/command"
-	"kubinka/errlist"
-	"kubinka/strg"
 	"log"
+	"peary/command"
+	"peary/errlist"
+	"peary/strg"
 	"sync/atomic"
 	"time"
 

@@ -1,8 +1,8 @@
 package cmd_return
 
 import (
-	"kubinka/errlist"
-	"kubinka/strg"
+	"peary/errlist"
+	"peary/strg"
 
 	"github.com/bwmarrin/discordgo"
 )

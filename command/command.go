@@ -2,7 +2,7 @@ package command
 
 import (
 	"context"
-	"kubinka/strg"
+	"peary/strg"
 
 	"github.com/bwmarrin/discordgo"
 )

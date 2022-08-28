@@ -2,8 +2,8 @@ package cmd_deploy
 
 import (
 	"fmt"
-	"kubinka/config"
-	"kubinka/errlist"
+	"peary/config"
+	"peary/errlist"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -22,7 +22,7 @@ func NewGiveRoleStep(s *discordgo.Session, i *discordgo.InteractionCreate) *Give
 
 func (s *GiveRoleStep) Do() error {
 	err := s.DiscordSession.GuildMemberRoleAdd( // TODO: discordgo.RESTError?
-		config.BOT_GUILD_ID,
+		s.InteractionCreate.GuildID,
 		s.InteractionCreate.Member.User.ID,
 		config.BOT_ROLE_ID,
 	)
@@ -38,7 +38,7 @@ func (s *GiveRoleStep) Do() error {
 
 func (s *GiveRoleStep) Rollback() error {
 	err := s.DiscordSession.GuildMemberRoleRemove(
-		config.BOT_GUILD_ID,
+		s.InteractionCreate.GuildID,
 		s.InteractionCreate.Member.User.ID,
 		config.BOT_ROLE_ID,
 	)

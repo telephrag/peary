@@ -3,13 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"kubinka/config"
-	"kubinka/errlist"
-	"kubinka/service"
-	"kubinka/strg"
 	"log"
 	"os"
 	"os/signal"
+	"peary/config"
+	"peary/errlist"
+	"peary/service"
+	"peary/strg"
 	"syscall"
 	"time"
 
@@ -38,44 +38,48 @@ func newDiscordSession(
 	token string,
 	c *strg.BoltConn,
 ) (*discordgo.Session, *service.MasterHandler) {
-	discord, err := discordgo.New("Bot " + token)
+	ds, err := discordgo.New("Bot " + token)
 	if err != nil {
 		log.Fatal("Could not create session.\n\n\n")
 	}
-	discord.SyncEvents = false
+	ds.SyncEvents = false
 	masterHandler := service.NewMasterHandler(ctx, cancel, c)
-	discord.AddHandler(masterHandler.Handle)
+	ds.AddHandler(masterHandler.Handle)
 
-	err = discord.Open()
+	err = ds.Open()
 	if err != nil {
-		log.Fatal("Could not open connection.\n\n\n")
+		log.Fatal(errlist.New(fmt.Errorf("could not open connection: %w", err)))
 	}
 
-	return discord, masterHandler
+	if len(ds.State.Ready.Guilds) > 1 {
+		log.Fatal(errlist.New(fmt.Errorf("attempt to use bot in more than one guild simultaneously")))
+	}
+
+	return ds, masterHandler
 }
 
-func createCommands(ds *discordgo.Session, appId string, guildId string) {
+func createCommands(ds *discordgo.Session, appId string, guildID string) {
 	var err error
 	for i, cmd := range service.CmdDef {
 		service.CmdDef[i], err = ds.ApplicationCommandCreate(
 			appId,
-			guildId,
+			guildID,
 			cmd,
 		)
 		if err != nil {
 			if i > 0 {
-				deleteCommands(ds, config.BOT_GUILD_ID)
+				deleteCommands(ds, guildID)
 			}
 			log.Fatalf("Failed to create command %s:\n %s\n\n\n", cmd.Name, err)
 		}
 	}
 }
 
-func deleteCommands(ds *discordgo.Session, guildId string) {
+func deleteCommands(ds *discordgo.Session, guildID string) {
 	for _, cmd := range service.CmdDef {
 		err := ds.ApplicationCommandDelete(
 			ds.State.User.ID,
-			guildId,
+			guildID,
 			cmd.ID,
 		)
 		if err != nil {
@@ -85,26 +89,34 @@ func deleteCommands(ds *discordgo.Session, guildId string) {
 }
 
 // ds.GuildRoleDelete(guildId, roleId) to rollback
-func createRole(ds *discordgo.Session, name, guildId string, color int) (roleId string, err error) {
-	st, err := ds.GuildRoleCreate(guildId)
+func createRole(ds *discordgo.Session, name, guildID string, color int) (roleId string, err error) {
+	var perm int64 = 0
+	var yes bool = true
+	st, err := ds.GuildRoleCreate(
+		guildID,
+		&discordgo.RoleParams{
+			Name:        name,
+			Color:       &color,
+			Hoist:       &yes,
+			Permissions: &perm,
+			Mentionable: &yes,
+		},
+	)
 	if err != nil {
 		return "", err
-	}
-
-	if _, err := ds.GuildRoleEdit(guildId, st.ID, name, color, true, st.Permissions, true); err != nil {
-		return st.ID, err
 	}
 
 	return st.ID, nil
 }
 
-func reissueRoles(ds *discordgo.Session, db *strg.BoltConn, guildId, roleId string) error {
+func reissueRoles(ds *discordgo.Session, db *strg.BoltConn, guildID, roleID string) error {
 	idsWithRoles := db.GetPlayerIDs()
 	for _, id := range idsWithRoles {
-		err := ds.GuildMemberRoleAdd(guildId, id, roleId)
+		err := ds.GuildMemberRoleAdd(guildID, id, roleID)
 		if err != nil {
 			return errlist.New(err).Set("event", errlist.StartupRoleReissue).Set("session", id)
 		}
+		log.Print(errlist.New(nil).Set("session", id).Set("event", errlist.StartupRoleReissue))
 	}
 
 	return nil
@@ -117,38 +129,57 @@ func main() {
 	log.SetOutput(logFile)
 	log.Print(errlist.New(nil).Set("event", "SESSION STARTUP"))
 	shutdownLogRec := errlist.New(nil).Set("event", "SESSION SHUTDOWN")
+	defer log.Print(shutdownLogRec)
 
 	db, err := strg.Connect(config.DB_NAME, config.DB_PLAYERS_BUCKET_NAME)
 	if err != nil {
-		log.Panicf("failed to connect to db: %v", err)
+		shutdownLogRec.Wrap(err).Set("event", "startup_db_connect")
+	} else {
+		defer db.Close()
 	}
-	defer db.Close()
 
 	ctx, cancel := context.WithCancel(context.Background())
-
 	ds, masterHandler := newDiscordSession(ctx, cancel, config.BOT_TOKEN, db)
 	defer masterHandler.Cancel()
 	defer masterHandler.HaltUntilAllDone()
 	defer ds.Close()
 
-	createCommands(ds, config.BOT_APP_ID, config.BOT_GUILD_ID)
-	defer deleteCommands(ds, config.BOT_GUILD_ID) // Removing commands on bot shutdown
+	// app, err := ds.Application(config.BOT_APP_ID)
+	// if err != nil {
+	// 	shutdownLogRec.Wrap(err).Set("event", "startup_appdata_retrieve")
+	// 	return
+	// }
+	// config.BOT_GUILD_ID = app.GuildID
 
-	config.BOT_ROLE_ID, err = createRole(ds, "Waiting deploy", config.BOT_GUILD_ID, 307015)
+	// config.BOT_GUILD_ID, err = ds.State.GuildOneID()
+	// if err != nil {
+	// 	shutdownLogRec.Wrap(err).Set("event", "startup_appdata_retrieve")
+	// 	return
+	// }
+
+	guildID := ds.State.Ready.Guilds[0].ID
+
+	createCommands(ds, config.BOT_APP_ID, guildID)
+	defer deleteCommands(ds, guildID) // Removing commands on bot shutdown
+
+	config.BOT_ROLE_ID, err = createRole(ds, "Waiting deploy", guildID, 307015)
 	if err != nil {
 		shutdownLogRec.Wrap(
 			errlist.New(fmt.Errorf("failed to create role: %w", err)).
 				Set("event", "startup_role_create"))
+		return
 	}
 	defer func() {
-		if err := ds.GuildRoleDelete(config.BOT_GUILD_ID, config.BOT_ROLE_ID); err != nil {
+		if err := ds.GuildRoleDelete(guildID, config.BOT_ROLE_ID); err != nil {
 			shutdownLogRec.Wrap(
 				errlist.New(fmt.Errorf("failed to delete role")).
 					Set("event", "shutdown_role_delete"))
 		}
 	}()
 
-	reissueRoles(ds, db, config.BOT_GUILD_ID, config.BOT_ROLE_ID)
+	if err := reissueRoles(ds, db, guildID, config.BOT_ROLE_ID); err != nil {
+		shutdownLogRec.Wrap(err)
+	}
 
 	go func() {
 		err := db.WatchExpirations(ctx, ds)
@@ -162,11 +193,11 @@ halt:
 	for {
 		select {
 		case <-interrupt:
-			log.Print(shutdownLogRec.Set("cause", "execution stopped by user"))
+			shutdownLogRec.Wrap(errlist.New(nil).Set("event", "execution stopped by user"))
 			masterHandler.Cancel()
 			break halt
 		case <-masterHandler.Ctx.Done():
-			log.Print(shutdownLogRec.Set("cause", ctx.Err().Error()))
+			shutdownLogRec.Wrap(errlist.New(nil).Set("event", ctx.Err().Error()))
 			break halt
 		default:
 			time.Sleep(time.Millisecond * 100)
