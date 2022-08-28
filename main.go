@@ -58,11 +58,11 @@ func newDiscordSession(
 	return ds, masterHandler
 }
 
-func createCommands(ds *discordgo.Session, appId string, guildID string) {
+func createCommands(ds *discordgo.Session, appID string, guildID string) {
 	var err error
 	for i, cmd := range service.CmdDef {
 		service.CmdDef[i], err = ds.ApplicationCommandCreate(
-			appId,
+			appID,
 			guildID,
 			cmd,
 		)
@@ -70,7 +70,7 @@ func createCommands(ds *discordgo.Session, appId string, guildID string) {
 			if i > 0 {
 				deleteCommands(ds, guildID)
 			}
-			log.Fatalf("Failed to create command %s:\n %s\n\n\n", cmd.Name, err)
+			log.Fatal(errlist.New(fmt.Errorf("failed to create command /%s", cmd.Name)).Wrap(err))
 		}
 	}
 }
@@ -83,7 +83,7 @@ func deleteCommands(ds *discordgo.Session, guildID string) {
 			cmd.ID,
 		)
 		if err != nil {
-			log.Fatalf("Could not delete %q command: %v\n\n\n", cmd.Name, err)
+			log.Fatal(errlist.New(fmt.Errorf("could not delete %s command", cmd.Name)).Wrap(err))
 		}
 	}
 }
