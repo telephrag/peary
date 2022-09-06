@@ -4,9 +4,11 @@ import (
 	"context"
 	"peary/command"
 	"peary/config"
-	"peary/errlist"
+	"peary/errconst"
 	"peary/step"
 	"time"
+
+	"github.com/telephrag/errlist"
 )
 
 type ReturnCmd struct {
@@ -22,7 +24,7 @@ func Init(env *command.Env) command.Command {
 			NewDeleteFromDBStep(env.DBConn, env.DiscordInteractionCreate),
 			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
 		}),
-		eventName: errlist.CmdReturn,
+		eventName: errconst.CmdReturn,
 		session:   env.DiscordInteractionCreate.Member.User.ID,
 	}
 }
@@ -41,7 +43,7 @@ do: // iterate all steps of command
 			select {
 			case <-timeout:
 				if doErr == nil {
-					doErr = errlist.New(errlist.ErrHandlerTimeout).
+					doErr = errlist.New(errconst.ErrHandlerTimeout).
 						Set("session", cmd.session).
 						Set("event", cmd.eventName)
 				}
@@ -68,7 +70,7 @@ rollback: // reverse iterate from point of failure
 			select {
 			case <-timeout:
 				if rbErr == nil {
-					rbErr = errlist.New(errlist.ErrHandlerTimeout).
+					rbErr = errlist.New(errconst.ErrHandlerTimeout).
 						Set("session", cmd.session).
 						Set("event", cmd.eventName)
 				}

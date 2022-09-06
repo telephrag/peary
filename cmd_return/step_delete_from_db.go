@@ -1,10 +1,11 @@
 package cmd_return
 
 import (
-	"peary/errlist"
+	"peary/errconst"
 	"peary/strg"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/telephrag/errlist"
 )
 
 type DeleteFromDBStep struct {
@@ -24,7 +25,7 @@ func (s *DeleteFromDBStep) Do() error {
 }
 
 func (s *DeleteFromDBStep) Rollback() error {
-	return errlist.New(errlist.ErrFailedToRecover).
+	return errlist.New(errconst.ErrFailedToRecover).
 		Set("session", s.InteractionCreate.Member.User.ID).
-		Set("event", errlist.CmdReturnRollback)
+		Set("event", errconst.CmdReturnRollback)
 }

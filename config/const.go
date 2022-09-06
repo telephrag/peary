@@ -1,9 +1,13 @@
 package config
 
-const DB_NAME = "peary"
-const DB_PLAYERS_BUCKET_NAME = "players"
-const DB_CHANGESTREAM_SLEEP_SECONDS = 60
+const (
+	DB_NAME                       = "peary"
+	DB_PLAYERS_BUCKET_NAME        = "players"
+	DB_CHANGESTREAM_SLEEP_SECONDS = 60
 
-const LOG_FILE_NAME = "log.log"
+	LOG_FILE_NAME = "peary.log"
 
-const CMD_HANDLER_TIMEOUT_SECONDS = 5
+	CMD_HANDLER_TIMEOUT_SECONDS = 5
+
+	BOT_ROLE_COLOR = 307015
+)

@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"log"
 	"peary/config"
-	"peary/errlist"
+	"peary/errconst"
 	"peary/models"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/telephrag/errlist"
 	"go.etcd.io/bbolt"
 )
 
@@ -69,19 +70,19 @@ func (b *BoltConn) Insert(p *models.Player) error {
 		if err != nil {
 			return errlist.New(fmt.Errorf("failed to marshal player: %w", err)).
 				Set("session", p.DiscordID).
-				Set("event", errlist.DBInsert)
+				Set("event", errconst.DBInsert)
 		}
 
 		err = bkt.Put([]byte(p.DiscordID), buf)
 		if err != nil {
 			return errlist.New(fmt.Errorf("bolt: failed to put player into bucket %s: %w", b.domain, err)).
 				Set("session", p.DiscordID).
-				Set("event", errlist.DBInsert)
+				Set("event", errconst.DBInsert)
 		}
 
 		log.Print(errlist.New(nil).
 			Set("session", p.DiscordID).
-			Set("event", errlist.DBInsert),
+			Set("event", errconst.DBInsert),
 		)
 		return nil
 	})
@@ -94,7 +95,7 @@ func (b *BoltConn) Delete(key string) error {
 		if err := bkt.Delete([]byte(key)); err != nil {
 			return errlist.New(fmt.Errorf("failed to delete value at key: %w", err)).
 				Set("session", key).
-				Set("event", errlist.DBDelete)
+				Set("event", errconst.DBDelete)
 		}
 		return nil
 	})
@@ -104,7 +105,7 @@ func (b *BoltConn) RemoveExpired(ds *discordgo.Session) error {
 	tx, err := b.db.Begin(true)
 	if err != nil {
 		return errlist.New(fmt.Errorf("failed to initiate transaction")).
-			Set("event", errlist.DBChangeStream)
+			Set("event", errconst.DBChangeStream)
 	}
 
 	bkt := tx.Bucket([]byte(b.domain))
@@ -114,7 +115,7 @@ func (b *BoltConn) RemoveExpired(ds *discordgo.Session) error {
 		p := models.Player{}
 		if err := json.Unmarshal(v, &p); err != nil {
 			return errlist.New(err).
-				Set("event", errlist.DBChangeStream)
+				Set("event", errconst.DBChangeStream)
 		}
 
 		if p.Expire.Before(now) {
@@ -125,26 +126,26 @@ func (b *BoltConn) RemoveExpired(ds *discordgo.Session) error {
 				p.DiscordID,
 				config.BOT_ROLE_ID)
 			if err != nil {
-				return errlist.New(errlist.ErrFailedTakeRole).
+				return errlist.New(errconst.ErrFailedTakeRole).
 					Set("session", p.DiscordID).
-					Set("event", errlist.DBChangeStreamExpire)
+					Set("event", errconst.DBChangeStreamExpire)
 			}
 			err = c.Delete()
 			if err != nil {
 				return errlist.New(fmt.Errorf("failed to delete player record at cursor: %w", err)).
-					Set("event", errlist.DBChangeStreamExpire)
+					Set("event", errconst.DBChangeStreamExpire)
 			}
 
 			log.Print(errlist.New(nil).
 				Set("session", p.DiscordID).
-				Set("event", errlist.DBChangeStreamExpire),
+				Set("event", errconst.DBChangeStreamExpire),
 			)
 		}
 	}
 	if err := tx.Commit(); err != nil {
 		tx.Rollback()
 		return errlist.New(fmt.Errorf("failed to commit transaction: %w", err)).
-			Set("event", errlist.DBChangeStream)
+			Set("event", errconst.DBChangeStream)
 	}
 
 	return nil

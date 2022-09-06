@@ -2,14 +2,16 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"peary/command"
-	"peary/errlist"
+	"peary/errconst"
 	"peary/strg"
 	"sync/atomic"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/telephrag/errlist"
 )
 
 type MasterHandler struct {
@@ -35,6 +37,21 @@ func (mh *MasterHandler) getEnv(s *discordgo.Session, i *discordgo.InteractionCr
 	}
 }
 
+func notifyUser(s *discordgo.Session, i *discordgo.InteractionCreate, errMsg string) error {
+	err := s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+		Type: discordgo.InteractionResponseChannelMessageWithSource,
+		Data: &discordgo.InteractionResponseData{
+			Content: fmt.Sprintf("An error occured during your request: %s", errMsg),
+		},
+	})
+	if err != nil {
+		return errlist.New(fmt.Errorf("%s: %w", errconst.ErrFailedSendResponse, err)).
+			Set("session", i.Member.User.ID).Set("event", errconst.NotifyUsr)
+	}
+
+	return nil
+}
+
 func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCreate) {
 
 	init, ok := handlerToCmd[i.ApplicationCommandData().Name]
@@ -47,10 +64,10 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	select {
 	case <-mh.Ctx.Done(): // cancellation of context means breakage of state somewhere...
-		mhErr := errlist.New(errlist.ErrSomewhereElse).
+		mhErr := errlist.New(errconst.ErrSomewhereElse).
 			Set("session", i.Member.User.ID).
 			Set("event", cmd.Event()).
-			Wrap(errlist.NotifyUser(s, i, errlist.ErrSomewhereElse.Error()))
+			Wrap(notifyUser(s, i, errconst.ErrSomewhereElse.Error()))
 		log.Print(mhErr)
 		return // ... so, do not handle any more commands to not risk breaking state even more
 	default:
@@ -61,7 +78,7 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	handlerErr := cmd.Handle(mh.Ctx)
 	if handlerErr != nil {
-		err := errlist.NotifyUser(s, i, handlerErr.Error())
+		err := notifyUser(s, i, handlerErr.Error())
 		if err != nil {
 			handlerErr.(*errlist.ErrNode).Wrap(err)
 			mh.Cancel()

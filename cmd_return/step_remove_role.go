@@ -3,9 +3,10 @@ package cmd_return
 import (
 	"fmt"
 	"peary/config"
-	"peary/errlist"
+	"peary/errconst"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/telephrag/errlist"
 )
 
 type RemoveRoleStep struct {
@@ -27,9 +28,9 @@ func (s *RemoveRoleStep) Do() error {
 		config.BOT_ROLE_ID,
 	)
 	if err != nil {
-		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedTakeRole, err)).
+		return errlist.New(fmt.Errorf("%s: %w", errconst.ErrFailedTakeRole, err)).
 			Set("session", s.InteractionCreate.Member.User.ID).
-			Set("event", errlist.CmdReturnDo)
+			Set("event", errconst.CmdReturnDo)
 	}
 
 	return nil
@@ -38,7 +39,7 @@ func (s *RemoveRoleStep) Do() error {
 func (s *RemoveRoleStep) Rollback() error {
 	// if we removed role already, better leave it like this even if user gets no response
 	// which is better than receiving pings you didn't sign for
-	return errlist.New(errlist.ErrFailedToRecover).
+	return errlist.New(errconst.ErrFailedToRecover).
 		Set("session", s.InteractionCreate.Member.User.ID).
-		Set("event", errlist.CmdReturnRollback)
+		Set("event", errconst.CmdReturnRollback)
 }

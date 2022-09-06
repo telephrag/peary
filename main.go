@@ -7,13 +7,14 @@ import (
 	"os"
 	"os/signal"
 	"peary/config"
-	"peary/errlist"
+	"peary/errconst"
 	"peary/service"
 	"peary/strg"
 	"syscall"
 	"time"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/telephrag/errlist"
 )
 
 func getLogFile(fileName string) *os.File {
@@ -89,7 +90,7 @@ func deleteCommands(ds *discordgo.Session, guildID string) {
 }
 
 // ds.GuildRoleDelete(guildId, roleId) to rollback
-func createRole(ds *discordgo.Session, name, guildID string, color int) (roleId string, err error) {
+func createRole(ds *discordgo.Session, name, guildID string, color int) (roleID string, err error) {
 	var perm int64 = 0
 	var yes bool = true
 	st, err := ds.GuildRoleCreate(
@@ -114,9 +115,9 @@ func reissueRoles(ds *discordgo.Session, db *strg.BoltConn, guildID, roleID stri
 	for _, id := range idsWithRoles {
 		err := ds.GuildMemberRoleAdd(guildID, id, roleID)
 		if err != nil {
-			return errlist.New(err).Set("event", errlist.StartupRoleReissue).Set("session", id)
+			return errlist.New(err).Set("event", errconst.StartupRoleReissue).Set("session", id)
 		}
-		log.Print(errlist.New(nil).Set("session", id).Set("event", errlist.StartupRoleReissue))
+		log.Print(errlist.New(nil).Set("session", id).Set("event", errconst.StartupRoleReissue))
 	}
 
 	return nil
@@ -131,6 +132,15 @@ func main() {
 	shutdownLogRec := errlist.New(nil).Set("event", "SESSION SHUTDOWN")
 	defer log.Print(shutdownLogRec)
 
+	token, ok := syscall.Getenv("BOT_TOKEN")
+	if !ok {
+		shutdownLogRec.Wrap(fmt.Errorf("no BOT_TOKEN provided"))
+	}
+	appID, ok := syscall.Getenv("BOT_APP_ID")
+	if !ok {
+		shutdownLogRec.Wrap(fmt.Errorf("no BOT_APP_ID provided"))
+	}
+
 	db, err := strg.Connect(config.DB_NAME, config.DB_PLAYERS_BUCKET_NAME)
 	if err != nil {
 		shutdownLogRec.Wrap(err).Set("event", "startup_db_connect")
@@ -139,37 +149,26 @@ func main() {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	ds, masterHandler := newDiscordSession(ctx, cancel, config.BOT_TOKEN, db)
+	ds, masterHandler := newDiscordSession(ctx, cancel, token, db)
 	defer masterHandler.Cancel()
 	defer masterHandler.HaltUntilAllDone()
 	defer ds.Close()
 
-	// app, err := ds.Application(config.BOT_APP_ID)
-	// if err != nil {
-	// 	shutdownLogRec.Wrap(err).Set("event", "startup_appdata_retrieve")
-	// 	return
-	// }
-	// config.BOT_GUILD_ID = app.GuildID
-
-	// config.BOT_GUILD_ID, err = ds.State.GuildOneID()
-	// if err != nil {
-	// 	shutdownLogRec.Wrap(err).Set("event", "startup_appdata_retrieve")
-	// 	return
-	// }
-
 	guildID := ds.State.Ready.Guilds[0].ID
 
-	createCommands(ds, config.BOT_APP_ID, guildID)
-	defer deleteCommands(ds, guildID) // Removing commands on bot shutdown
+	createCommands(ds, appID, guildID)
+	defer deleteCommands(ds, guildID) // Removing commands on bot shutdown.
 
-	config.BOT_ROLE_ID, err = createRole(ds, "Waiting deploy", guildID, 307015)
+	// Each time we create new role to save user a hustle getting ID of precreated one
+	// using developer mode.
+	config.BOT_ROLE_ID, err = createRole(ds, "Waiting deploy", guildID, config.BOT_ROLE_COLOR)
 	if err != nil {
 		shutdownLogRec.Wrap(
 			errlist.New(fmt.Errorf("failed to create role: %w", err)).
 				Set("event", "startup_role_create"))
 		return
 	}
-	defer func() {
+	defer func() { // Said role is deleted on shutdown.
 		if err := ds.GuildRoleDelete(guildID, config.BOT_ROLE_ID); err != nil {
 			shutdownLogRec.Wrap(
 				errlist.New(fmt.Errorf("failed to delete role")).
@@ -177,6 +176,8 @@ func main() {
 		}
 	}()
 
+	// Since we delete roles on shutdown users lose their roles which is a good thing
+	// because, they won't receive pings while not being able to get rid of the role.
 	if err := reissueRoles(ds, db, guildID, config.BOT_ROLE_ID); err != nil {
 		shutdownLogRec.Wrap(err)
 	}
