@@ -13,8 +13,4 @@ COPY --from=build-env /go/bin/peary /
 
 CMD ["./peary"]
 
-# sudo docker run \
-#   --name=peary_container \
-#   --env-file=.env \
-#   -v /home/$(id -nu 1000)/volumes/peary_data:/data \
-#   -p 8080:8080 peary
+# sudo docker run --name=peary_container --env-file=.env -v /home/$(id -nu 1000)/volumes/peary_data:/data -p 8080:8080 peary

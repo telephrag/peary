@@ -1,6 +1,5 @@
 /.vscode
 /vendor
-config/usrdef.go
 NOTES.md
 main
 peary.db

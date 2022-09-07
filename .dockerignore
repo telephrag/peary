@@ -1,0 +1,6 @@
+# Pls, ignore these
+*.md
+.env
+peary.db
+peary.log
+.git

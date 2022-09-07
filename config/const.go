@@ -1,11 +1,11 @@
 package config
 
 const (
-	NAME                          = "peary"
-	DB_PLAYERS_BUCKET_NAME        = "players"
-	DB_CHANGESTREAM_SLEEP_SECONDS = 60
+	// Used for giving name to database and log files.
+	// If changed won't be consistent with container and executable name.
+	NAME = "peary"
 
-	CMD_HANDLER_TIMEOUT_SECONDS = 5
-
-	BOT_ROLE_COLOR = 307015
+	// Used for giving name to part of database that stores data about players who
+	// took role.
+	DB_PLAYERS_BUCKET_NAME = "players"
 )

@@ -164,7 +164,7 @@ func main() {
 
 	// Each time we create new role to save user a hustle getting ID of precreated one
 	// using developer mode.
-	config.BOT_ROLE_ID, err = createRole(ds, "Waiting deploy", guildID, config.BOT_ROLE_COLOR)
+	config.BOT_ROLE_ID, err = createRole(ds, config.BOT_ROLE_NAME, guildID, config.BOT_ROLE_COLOR)
 	if err != nil {
 		shutdownLogRec.Wrap(
 			errlist.New(fmt.Errorf("failed to create role: %w", err)).
