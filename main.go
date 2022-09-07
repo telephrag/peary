@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -17,16 +18,16 @@ import (
 	"github.com/telephrag/errlist"
 )
 
-func getLogFile(fileName string) *os.File {
-	f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+func getLogFile(path string) *os.File {
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 	if err != nil {
-		_, err := os.Create(fileName)
+		_, err := os.Create(path)
 		if err != nil {
-			log.Fatalln("Failed to create or open file for logging.")
+			log.Fatalln(errlist.New(err))
 		}
-		f, err := os.OpenFile(fileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 		if err != nil {
-			log.Fatalln("Failed to open just created file.")
+			log.Fatalln(errlist.New(err))
 		}
 		return f
 	}
@@ -41,7 +42,7 @@ func newDiscordSession(
 ) (*discordgo.Session, *service.MasterHandler) {
 	ds, err := discordgo.New("Bot " + token)
 	if err != nil {
-		log.Fatal("Could not create session.\n\n\n")
+		log.Fatal(errlist.New(errors.New("could not create session")))
 	}
 	ds.SyncEvents = false
 	masterHandler := service.NewMasterHandler(ctx, cancel, c)
@@ -124,7 +125,7 @@ func reissueRoles(ds *discordgo.Session, db *strg.BoltConn, guildID, roleID stri
 }
 
 func main() {
-	logFile := getLogFile(config.LOG_FILE_NAME)
+	logFile := getLogFile("/data/" + config.NAME + ".log")
 	defer logFile.Close()
 	log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
 	log.SetOutput(logFile)
@@ -135,13 +136,15 @@ func main() {
 	token, ok := syscall.Getenv("BOT_TOKEN")
 	if !ok {
 		shutdownLogRec.Wrap(fmt.Errorf("no BOT_TOKEN provided"))
+		return
 	}
 	appID, ok := syscall.Getenv("BOT_APP_ID")
 	if !ok {
 		shutdownLogRec.Wrap(fmt.Errorf("no BOT_APP_ID provided"))
+		return
 	}
 
-	db, err := strg.Connect(config.DB_NAME, config.DB_PLAYERS_BUCKET_NAME)
+	db, err := strg.Connect("/data/"+config.NAME, config.DB_PLAYERS_BUCKET_NAME)
 	if err != nil {
 		shutdownLogRec.Wrap(err).Set("event", "startup_db_connect")
 	} else {

@@ -2,9 +2,10 @@ package cmd_deploy
 
 import (
 	"fmt"
-	"peary/errlist"
+	"peary/errconst"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/telephrag/errlist"
 )
 
 type MsgResponseStep struct {
@@ -33,16 +34,16 @@ func (s *MsgResponseStep) Do() error {
 			},
 		})
 	if err != nil {
-		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedSendResponse, err)).
+		return errlist.New(fmt.Errorf("%s: %w", errconst.ErrFailedSendResponse, err)).
 			Set("session", s.InteractionCreate.Member.User.ID).
-			Set("event", errlist.CmdDeployDo)
+			Set("event", errconst.CmdDeployDo)
 	}
 
 	return nil
 }
 
 func (s *MsgResponseStep) Rollback() error {
-	return errlist.New(errlist.ErrFailedToRecover).
+	return errlist.New(errconst.ErrFailedToRecover).
 		Set("session", s.InteractionCreate.Member.User.ID).
-		Set("event", errlist.CmdDeployRollback)
+		Set("event", errconst.CmdDeployRollback)
 }

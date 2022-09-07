@@ -2,8 +2,7 @@
 /vendor
 config/usrdef.go
 NOTES.md
-old.log
-log.log
 main
 peary.db
-cfg.json
+peary.log
+.env

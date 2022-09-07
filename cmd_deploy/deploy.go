@@ -4,9 +4,11 @@ import (
 	"context"
 	"peary/command"
 	"peary/config"
-	"peary/errlist"
+	"peary/errconst"
 	"peary/step"
 	"time"
+
+	"github.com/telephrag/errlist"
 )
 
 type DeployCmd struct {
@@ -22,7 +24,7 @@ func Init(env *command.Env) command.Command {
 			NewAddToDBStep(env.DBConn, env.DiscordInteractionCreate),
 			NewMsgResponseStep(env.DiscordSession, env.DiscordInteractionCreate),
 		}),
-		eventName: errlist.CmdDeploy,
+		eventName: errconst.CmdDeploy,
 		session:   env.DiscordInteractionCreate.Member.User.ID,
 	}
 }
@@ -39,7 +41,7 @@ do: // iterate all steps in command
 			select {
 			case <-timeout:
 				if doErr == nil {
-					doErr = errlist.New(errlist.ErrHandlerTimeout).
+					doErr = errlist.New(errconst.ErrHandlerTimeout).
 						Set("session", cmd.session).
 						Set("event", cmd.eventName)
 				}
@@ -47,7 +49,7 @@ do: // iterate all steps in command
 			case <-ctx.Done():
 				// /deploy should not continue execution since its completion in context of failure...
 				if doErr == nil { // can break state
-					doErr = errlist.New(errlist.ErrHandlerTimeout).
+					doErr = errlist.New(errconst.ErrHandlerTimeout).
 						Set("session", cmd.session).
 						Set("event", cmd.eventName)
 				}
@@ -73,7 +75,7 @@ rollback: // reverse iterate from point of failure
 			select {
 			case <-timeout:
 				if rbErr == nil {
-					rbErr = errlist.New(errlist.ErrHandlerTimeout).
+					rbErr = errlist.New(errconst.ErrHandlerTimeout).
 						Set("session", cmd.session).
 						Set("event", cmd.eventName)
 				}

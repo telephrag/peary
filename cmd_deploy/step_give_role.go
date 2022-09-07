@@ -3,9 +3,10 @@ package cmd_deploy
 import (
 	"fmt"
 	"peary/config"
-	"peary/errlist"
+	"peary/errconst"
 
 	"github.com/bwmarrin/discordgo"
+	"github.com/telephrag/errlist"
 )
 
 type GiveRoleStep struct {
@@ -28,9 +29,9 @@ func (s *GiveRoleStep) Do() error {
 	)
 	if err != nil {
 		// TODO: Check if actual error is outputted not just bytes
-		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedGiveRole, err)).
+		return errlist.New(fmt.Errorf("%s: %w", errconst.ErrFailedGiveRole, err)).
 			Set("session", s.InteractionCreate.Member.User.ID).
-			Set("event", errlist.CmdDeployDo)
+			Set("event", errconst.CmdDeployDo)
 	}
 
 	return nil
@@ -43,9 +44,9 @@ func (s *GiveRoleStep) Rollback() error {
 		config.BOT_ROLE_ID,
 	)
 	if err != nil {
-		return errlist.New(fmt.Errorf("%s: %w", errlist.ErrFailedTakeRole, err)).
+		return errlist.New(fmt.Errorf("%s: %w", errconst.ErrFailedTakeRole, err)).
 			Set("session", s.InteractionCreate.Member.User.ID).
-			Set("event", errlist.CmdDeployRollback)
+			Set("event", errconst.CmdDeployRollback)
 	}
 
 	return nil
