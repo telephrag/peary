@@ -53,6 +53,7 @@ do: // iterate all steps in command
 						Set("session", cmd.session).
 						Set("event", cmd.eventName)
 				}
+				break do
 			default:
 				doErr = s.Do()
 				if doErr == nil {
