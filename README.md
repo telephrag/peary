@@ -34,7 +34,7 @@ sudo docker run \
     --env-file=.env \
     -v /home/$(id -nu 1000)/volumes/peary_data:/data \
     -p 8080:8080 \
-    peary
+    telephrag/peary
 ```
 
 Now your bot should be up and running. If it is so, congratulations!

@@ -79,25 +79,25 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	defer atomic.AddInt32(&mh.RunningCount, -1)
 
 	handlerErr := cmd.Handle(mh.Ctx)
-
-	if handlerErr.(*errlist.ErrNode).Has(errconst.ErrFailedToRecover) {
-		mh.Cancel() // cancel context if some handler failed to recover
-
-		err := notifyUser(s, i, errconst.ErrUsrMsg.Error())
-		if err != nil {
-			handlerErr.(*errlist.ErrNode).Wrap(err)
-		}
-		log.Print(handlerErr)
-		return
-	}
-
 	if handlerErr != nil {
-		// user didn't receive a proper error however state isn't broken so, no cancellation
-		err := notifyUser(s, i, errconst.ErrUsrMsg.Error())
-		if err != nil {
-			handlerErr.(*errlist.ErrNode).Wrap(err)
+
+		if handlerErr.(*errlist.ErrNode).Has(errconst.ErrFailedToRecover) {
+			mh.Cancel() // cancel context if some handler failed to recover
+
+			err := notifyUser(s, i, errconst.ErrUsrMsg.Error())
+			if err != nil {
+				handlerErr.(*errlist.ErrNode).Wrap(err)
+			}
+			log.Print(handlerErr)
+		} else {
+			// user didn't receive a proper error however state isn't broken so, no cancellation
+			err := notifyUser(s, i, errconst.ErrUsrMsg.Error())
+			if err != nil {
+				handlerErr.(*errlist.ErrNode).Wrap(err)
+			}
+			log.Print(handlerErr)
 		}
-		log.Print(handlerErr)
+
 		return
 	}
 
