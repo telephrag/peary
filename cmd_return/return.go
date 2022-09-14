@@ -85,7 +85,7 @@ rollback: // reverse iterate from point of failure
 	}
 
 	if rbErr != nil {
-		doErr.(*errlist.ErrNode).Wrap(rbErr)
+		doErr.(*errlist.ErrNode).Wrap(errconst.ErrFailedToRecover).Wrap(rbErr)
 	}
 
 	return doErr

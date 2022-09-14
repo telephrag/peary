@@ -6,10 +6,12 @@ var (
 	ErrFailedGiveRole     = errors.New("failed to give role")
 	ErrFailedTakeRole     = errors.New("failed to take role")
 	ErrFailedSendResponse = errors.New("failed to respond to player")
-	ErrFailedToRecover    = errors.New("failed to recover from error")
+	ErrRecoveryImpossible = errors.New("recovery impossible")
 	ErrSomewhereElse      = errors.New("error occured somewhere else and bot failed to recover")
 	ErrHandlerTimeout     = errors.New("command handler execution timeout")
-	ErrEmpty              = errors.New("")
+
+	ErrFailedToRecover = errors.New("failed to recover")
+	ErrUsrMsg          = errors.New("failed to handle your command")
 )
 
 const (

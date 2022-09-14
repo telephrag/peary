@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"peary/command"
@@ -56,7 +57,9 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	init, ok := handlerToCmd[i.ApplicationCommandData().Name]
 	if !ok {
-		log.Println("Couldn't retreive command Init(): ", i.ApplicationCommandData().Name)
+		log.Println(errlist.New(errors.New("couldn't get command's Init()")).
+			Set("cmd_name", i.ApplicationCommandData().Name),
+		)
 		return
 	}
 
@@ -64,11 +67,10 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 
 	select {
 	case <-mh.Ctx.Done(): // cancellation of context means breakage of state somewhere...
-		mhErr := errlist.New(errconst.ErrSomewhereElse).
-			Set("session", i.Member.User.ID).
-			Set("event", cmd.Event()).
-			Wrap(notifyUser(s, i, errconst.ErrSomewhereElse.Error()))
-		log.Print(mhErr)
+		mhErr := errlist.New(errconst.ErrSomewhereElse)
+		if err := notifyUser(s, i, errconst.ErrSomewhereElse.Error()); err != nil {
+			mhErr.Wrap(err)
+		}
 		return // ... so, do not handle any more commands to not risk breaking state even more
 	default:
 	}
@@ -77,11 +79,23 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	defer atomic.AddInt32(&mh.RunningCount, -1)
 
 	handlerErr := cmd.Handle(mh.Ctx)
-	if handlerErr != nil {
-		err := notifyUser(s, i, handlerErr.Error())
+
+	if handlerErr.(*errlist.ErrNode).Has(errconst.ErrFailedToRecover) {
+		mh.Cancel() // cancel context if some handler failed to recover
+
+		err := notifyUser(s, i, errconst.ErrUsrMsg.Error())
 		if err != nil {
 			handlerErr.(*errlist.ErrNode).Wrap(err)
-			mh.Cancel()
+		}
+		log.Print(handlerErr)
+		return
+	}
+
+	if handlerErr != nil {
+		// user didn't receive a proper error however state isn't broken so, no cancellation
+		err := notifyUser(s, i, errconst.ErrUsrMsg.Error())
+		if err != nil {
+			handlerErr.(*errlist.ErrNode).Wrap(err)
 		}
 		log.Print(handlerErr)
 		return

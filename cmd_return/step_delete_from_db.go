@@ -25,7 +25,7 @@ func (s *DeleteFromDBStep) Do() error {
 }
 
 func (s *DeleteFromDBStep) Rollback() error {
-	return errlist.New(errconst.ErrFailedToRecover).
+	return errlist.New(errconst.ErrRecoveryImpossible).
 		Set("session", s.InteractionCreate.Member.User.ID).
 		Set("event", errconst.CmdReturnRollback)
 }

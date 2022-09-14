@@ -49,7 +49,7 @@ do: // iterate all steps in command
 			case <-ctx.Done():
 				// /deploy should not continue execution since its completion in context of failure...
 				if doErr == nil { // can break state
-					doErr = errlist.New(errconst.ErrHandlerTimeout).
+					doErr = errlist.New(errconst.ErrSomewhereElse).
 						Set("session", cmd.session).
 						Set("event", cmd.eventName)
 				}
@@ -90,7 +90,7 @@ rollback: // reverse iterate from point of failure
 	}
 
 	if rbErr != nil {
-		doErr.(*errlist.ErrNode).Wrap(rbErr)
+		doErr.(*errlist.ErrNode).Wrap(errconst.ErrFailedToRecover).Wrap(rbErr)
 	}
 
 	return doErr

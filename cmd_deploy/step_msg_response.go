@@ -43,7 +43,7 @@ func (s *MsgResponseStep) Do() error {
 }
 
 func (s *MsgResponseStep) Rollback() error {
-	return errlist.New(errconst.ErrFailedToRecover).
+	return errlist.New(errconst.ErrRecoveryImpossible).
 		Set("session", s.InteractionCreate.Member.User.ID).
 		Set("event", errconst.CmdDeployRollback)
 }
