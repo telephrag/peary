@@ -69,7 +69,8 @@ func (mh *MasterHandler) Handle(s *discordgo.Session, i *discordgo.InteractionCr
 	case <-mh.Ctx.Done(): // cancellation of context means breakage of state somewhere...
 		mhErr := errlist.New(errconst.ErrSomewhereElse)
 		if err := notifyUser(s, i, errconst.ErrSomewhereElse.Error()); err != nil {
-			mhErr.Wrap(err)
+			mhErr.Wrap(err).Set("session", i.Member.User.ID).Set("event", cmd.Event())
+			log.Print(mhErr)
 		}
 		return // ... so, do not handle any more commands to not risk breaking state even more
 	default:
