@@ -25,11 +25,6 @@ func getLogFile(path string) *os.File {
 		if err != nil {
 			log.Fatalln(errlist.New(err))
 		}
-		f, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
-		if err != nil {
-			log.Fatalln(errlist.New(err))
-		}
-		return f
 	}
 	return f
 }
