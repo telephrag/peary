@@ -27,10 +27,13 @@ BOT_TOKEN=replace with your bot oauth2 token
 5. Run the following commands from the console one-by-one:
 
 `sudo make build` -- builds docker image for the bot
+
 `sudo make run` -- starts newly built bot or restarts if it's already built 
 
 Now your bot should be up and running. If it is so, congratulations!
+
 To stop the bot type `^C` (`Ctrl+C`).
+
 To remove type `sudo make clear`
 
 # How to send bug report
